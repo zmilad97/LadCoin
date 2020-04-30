@@ -62,24 +62,6 @@ public class Controller {
         System.out.println(wallet);
         coreService.addWalletToWalletList(new Wallet(wallet,0));
     }
-
-//    @GetMapping("/trx")
-//   public Block transaction(){
-//
-//        Block block = new Block();
-//        block.setIndex(coreService.getChain().size()-1);
-//        block.setPreviousHash(coreService.getChain().get(coreService.getChain().size()-1).getHash());
-//        block.setTransactions(coreService.getCurrentTransaction());
-//
-//        return block;
-//
-//   }
-
-    @GetMapping("test")
-    public String test(){
-    return String.valueOf(coreService.getWalletList().get(0).getAmount());
-    }
-
-
+    
 
 }

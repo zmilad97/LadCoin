@@ -31,10 +31,10 @@ public class CoreService {
         chain = new ArrayList<>();
         chain.add(generateGenesis());
 
-        //test
-//        walletList.add(new Wallet("a", 500));
-//        walletList.add(new Wallet("b", 50));
-//        currentTransaction.add(new Transaction("test", "a", "b", 20));
+      /* // test
+        walletList.add(new Wallet("a", 500));
+        walletList.add(new Wallet("b", 50));
+        currentTransaction.add(new Transaction("test", "a", "b", 20));*/
 
     }
 

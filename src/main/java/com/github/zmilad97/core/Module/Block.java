@@ -1,9 +1,5 @@
 package com.github.zmilad97.core.Module;
 
-import com.github.zmilad97.core.Service.Cryptography;
-import org.jetbrains.annotations.NotNull;
-
-import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.List;
 
@@ -15,13 +11,14 @@ public class Block {
     private String previousHash;
     private long nonce;
     private List<Transaction> transactions;
-    private String transactionsHash = "";
+//    private String transactionsHash = "";
 
     public Block() {
 
     }
 
     public Block(int index, Date date, List<Transaction> transactions) {
+        this.index = index;
         this.date = date;
         this.transactions = transactions;
     }
