@@ -21,6 +21,11 @@ public class Controller {
         this.coreService = coreService;
     }
 
+    @GetMapping("/connectionTest")
+    public void testConnection(){
+
+    }
+
     @GetMapping("/config")
     public Map getCoreConfig() {
         Map newMap = new HashMap();
@@ -62,6 +67,6 @@ public class Controller {
         System.out.println(wallet);
         coreService.addWalletToWalletList(new Wallet(wallet,0));
     }
-    
+
 
 }
