@@ -11,16 +11,35 @@ public class Block {
     private String previousHash;
     private long nonce;
     private List<Transaction> transactions;
-//    private String transactionsHash = "";
+    private String difficultyLevel;
+    private Double reward;
 
-    public Block() {
+    //    private String transactionsHash = "";
 
-    }
 
     public Block(int index, Date date, List<Transaction> transactions) {
         this.index = index;
         this.date = date;
         this.transactions = transactions;
+    }
+
+    public Block() {
+
+    }
+
+    public String getDifficultyLevel() {
+        return difficultyLevel;
+    }
+
+    public void setDifficultyLevel(String difficultyLevel) {
+        this.difficultyLevel = difficultyLevel;
+    }
+    public Double getReward() {
+        return reward;
+    }
+
+    public void setReward(Double reward) {
+        this.reward = reward;
     }
 
 
@@ -70,7 +89,7 @@ public class Block {
     }
 
     public void addTransaction(Transaction transaction) {
-            this.transactions.add(transaction);
+        this.transactions.add(transaction);
     }
 
     public void setTransactions(List<Transaction> transactions) {

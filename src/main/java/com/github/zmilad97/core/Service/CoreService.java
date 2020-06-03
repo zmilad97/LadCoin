@@ -19,7 +19,6 @@ public class CoreService {
     private double reward = 50;
     private List<Block> chain;
     private List<Transaction> currentTransaction;
-
     private List<Wallet> walletList;
 
     Cryptography cryptography;
@@ -103,6 +102,7 @@ public class CoreService {
                 transactionStringToHash += block.getTransactions().get(i).getTransactionHash();
 
             String stringToHash = block.getNonce() + block.getIndex() + block.getPreviousHash() + transactionStringToHash;
+            System.out.println(stringToHash);
             if (cryptography.toHexString(cryptography.getSha(stringToHash)).equals(block.getHash()))
                 return true;
 

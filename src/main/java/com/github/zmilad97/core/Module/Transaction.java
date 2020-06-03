@@ -7,14 +7,13 @@ import java.security.NoSuchAlgorithmException;
 public class Transaction {
 
     private String transactionId;
+    private int outputIndex;
     private String source;
     private String destination;
     private double amount;
-
     private String transactionHash;
 
-    public Transaction(String transactionId, String source, String destination, double amount) {
-        this.transactionId = transactionId;
+    public Transaction(String source, String destination, double amount) {
         this.source = source;
         this.destination = destination;
         this.amount = amount;
@@ -31,6 +30,14 @@ public class Transaction {
 
     public void setTransactionHash(String transactionHash) {
         this.transactionHash = transactionHash;
+    }
+
+    public int getOutputIndex() {
+        return outputIndex;
+    }
+
+    public void setOutputIndex(int outputIndex) {
+        this.outputIndex = outputIndex;
     }
 
     public String computeTransactionHash() {

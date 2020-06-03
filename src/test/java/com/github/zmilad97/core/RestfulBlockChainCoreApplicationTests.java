@@ -8,6 +8,7 @@ class RestfulBlockChainCoreApplicationTests {
 
     @Test
     void contextLoads() {
+
     }
 
 }
