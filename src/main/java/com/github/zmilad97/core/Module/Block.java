@@ -95,4 +95,18 @@ public class Block {
     public void setTransactions(List<Transaction> transactions) {
         this.transactions = transactions;
     }
+
+    @Override
+    public String toString() {
+        return "Block{" +
+            "index=" + index +
+            ", date=" + date +
+            ", hash='" + hash + '\'' +
+            ", previousHash='" + previousHash + '\'' +
+            ", nonce=" + nonce +
+            ", transactions=" + transactions +
+            ", difficultyLevel='" + difficultyLevel + '\'' +
+            ", reward=" + reward +
+            '}';
+    }
 }
