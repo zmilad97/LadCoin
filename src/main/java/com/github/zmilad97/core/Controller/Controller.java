@@ -5,6 +5,8 @@ import com.github.zmilad97.core.Module.Block;
 import com.github.zmilad97.core.Module.Transaction;
 import com.github.zmilad97.core.Module.Wallet;
 import com.github.zmilad97.core.Service.CoreService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,8 +15,10 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-public class Controller {
-    CoreService coreService;
+public class Controller { //TODO: controller name is a very general name, use a specialized name would be better
+    private static final Logger LOG = LoggerFactory.getLogger(Controller.class);
+
+    private final CoreService coreService;
 
     @Autowired
     public Controller(CoreService coreService) {
@@ -26,6 +30,7 @@ public class Controller {
 
     }
 
+    //TODO: could be removed now
     @GetMapping("/config")
     public Map<String,String> getCoreConfig() {                    //TODO : BETTER TO CONFIG TYPE TO SOMETHING ELSE INSTEAD OF MAP
         Map<String,String> newMap = new HashMap<>();                 //TODO : NEED TO FIX REWARD PROBLEM
@@ -38,8 +43,7 @@ public class Controller {
     @RequestMapping(value = "/pow", method = RequestMethod.POST)
     public void pow(@RequestBody Block block) {
         //TODO FIX DATE PROBLEM
-        System.out.println(block.getDate());
-        System.out.println(block.getNonce());
+        LOG.trace("pow requested: {}",block);
         coreService.addBlock(block, coreService);
     }
 
