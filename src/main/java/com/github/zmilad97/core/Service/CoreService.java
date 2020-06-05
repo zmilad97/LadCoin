@@ -33,10 +33,8 @@ public class CoreService {
         chain = new ArrayList<>();
         chain.add(generateGenesis());
 
-      /* // test
-        walletList.add(new Wallet("a", 500));
-        walletList.add(new Wallet("b", 50));
-        currentTransaction.add(new Transaction("test", "a", "b", 20));*/
+//        Transaction transaction = new Transaction("test 1" , " test 2", 50);
+//        currentTransaction.add(transaction);
 
     }
 
@@ -53,12 +51,12 @@ public class CoreService {
         return genesis;
     }
 
-    public void addBlock(Block block, CoreService coreService) {
+    public void addBlock(Block block) {
         if (validMine(block)) {
-            coreService.doTransactions(block, coreService);
+            this.doTransactions(block);
 
-            coreService.addBlockToChain(block);
-            coreService.getCurrentTransaction().clear();
+            this.addBlockToChain(block);
+            this.getCurrentTransaction().clear();
             LOG.info("Block has been added to chain");
 
         } else
@@ -66,35 +64,35 @@ public class CoreService {
     }
 
 
-    private void doTransactions(@NotNull Block block, CoreService coreService) {
+    private void doTransactions(@NotNull Block block) {
         for (int i = 0; i < block.getTransactions().size(); i++) {
-            validTransaction(block.getTransactions().get(i), coreService);
+            validTransaction(block.getTransactions().get(i));
         }
     }
 
-    public void validTransaction(@NotNull Transaction transaction, @NotNull CoreService coreService) //TODO fix Transaction then fix this method
+    public void validTransaction(@NotNull Transaction transaction) //TODO fix Transaction then fix this method
      {
         //finding Wallets
         Wallet sourceWallet = null;
         Wallet destinationWallet= null;
 
-        for (int i = 0; i < coreService.getWalletList().size(); i++) {
-            System.out.println(coreService.getWalletList().get(i).getPublicSignature());
-            if (coreService.getWalletList().get(i).getPublicSignature().equals(transaction.getSource()))
-                 sourceWallet = coreService.getWalletList().get(i);
-            if(coreService.getWalletList().get(i).getPublicSignature().equals(transaction.getDestination()))
-                destinationWallet = coreService.getWalletList().get(i);
+        for (int i = 0; i < this.getWalletList().size(); i++) {
+            System.out.println(this.getWalletList().get(i).getPublicSignature());
+            if (this.getWalletList().get(i).getPublicSignature().equals(transaction.getSource()))
+                 sourceWallet = this.getWalletList().get(i);
+            if(this.getWalletList().get(i).getPublicSignature().equals(transaction.getDestination()))
+                destinationWallet = this.getWalletList().get(i);
 
             }
             if (sourceWallet != null && destinationWallet != null)
                 if (sourceWallet.getAmount() > transaction.getAmount()) {
                     
-                    for (int i = 0; i <coreService.getWalletList().size(); i++) {
+                    for (int i = 0; i <this.getWalletList().size(); i++) {
 
-                        if (coreService.getWalletList().get(i).getPublicSignature().equals(transaction.getSource()))
-                         coreService.getWalletList().get(i).setAmount(sourceWallet.getAmount() - transaction.getAmount());
-                        if (coreService.getWalletList().get(i).getPublicSignature().equals(transaction.getDestination()))
-                             coreService.getWalletList().get(i).setAmount(destinationWallet.getAmount()+transaction.getAmount());
+                        if (this.getWalletList().get(i).getPublicSignature().equals(transaction.getSource()))
+                         this.getWalletList().get(i).setAmount(sourceWallet.getAmount() - transaction.getAmount());
+                        if (this.getWalletList().get(i).getPublicSignature().equals(transaction.getDestination()))
+                             this.getWalletList().get(i).setAmount(destinationWallet.getAmount()+transaction.getAmount());
                     }
                 }
         }
@@ -152,26 +150,29 @@ public class CoreService {
         chain.add(block);
     }
 
-    public void setChain(List<Block> chain) {
-        this.chain = chain;
-    }
 
     public List<Transaction> getCurrentTransaction() {
         return currentTransaction;
     }
 
-    public void setCurrentTransaction(List<Transaction> currentTransaction) {
-        this.currentTransaction = currentTransaction;
-    }
     public List<Wallet> getWalletList() {
         return walletList;
     }
 
-    public void setWalletList(List<Wallet> walletList) {
-        this.walletList = walletList;
+    public void addTransaction(Transaction transaction){
+        currentTransaction.add(transaction);
     }
+
 
     public void addWalletToWalletList(Wallet wallet){
         this.walletList.add(wallet);
+    }
+
+    public boolean isCurrentTransactionEmpty(){
+       return this.currentTransaction.isEmpty();
+    }
+
+    public void clean() {
+        currentTransaction.clear();
     }
 }

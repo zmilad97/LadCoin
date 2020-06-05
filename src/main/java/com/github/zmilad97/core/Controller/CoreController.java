@@ -8,6 +8,8 @@ import com.github.zmilad97.core.Service.CoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -30,20 +32,14 @@ public class CoreController {
 
     }
 
-    //TODO: could be removed now   : checked !
-//    @GetMapping("/config")
-//    public Map<String,String> getCoreConfig() {
-//        Map<String,String> newMap = new HashMap<>();                 //TODO : NEED TO FIX REWARD PROBLEM
-//        newMap.put("reward", String.valueOf(this.coreService.getReward()));
-//        newMap.put("difficulty", this.coreService.getDifficultyLevel());
-//        return newMap;
-//    }
+
+
 
     @RequestMapping(value = "/pow", method = RequestMethod.POST)
     public void pow(@RequestBody Block block) {
-        //TODO FIX DATE PROBLEM
-        LOG.info("pow requested: {}",block);
-        coreService.addBlock(block, coreService);
+
+        LOG.info("pow requested: {}", block);
+        coreService.addBlock(block);
     }
 
 
@@ -52,23 +48,27 @@ public class CoreController {
         coreService.getCurrentTransaction().add(transaction);    //TODO : FIX TRANSACTION-ID PROBLEM (MAKE IT AUTO GENERATE)
     }
 
-    @RequestMapping(value = "/wallet/status" , method = RequestMethod.POST)
-    public Wallet walletStatus(@RequestBody String pubKey){
+    @RequestMapping(value = "/wallet/status", method = RequestMethod.POST)
+    public Wallet walletStatus(@RequestBody String pubKey) {
         return null;                                    //TODO : FIX THIS
     }
 
     @RequestMapping(value = "/block")
-    public Block sendBlock() {
+    public ResponseEntity<Block> sendBlock() {
+
+        if (coreService.isCurrentTransactionEmpty())
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
         Block block = new Block();
         block.setDate(new java.util.Date().toString());
-        block.setIndex(coreService.getChain().size() );
+        block.setIndex(coreService.getChain().size());
         block.setPreviousHash(coreService.getChain().get(coreService.getChain().size() - 1).getPreviousHash());
         block.setTransactions(coreService.getCurrentTransaction());
         block.setDifficultyLevel(coreService.getDifficultyLevel());
         block.setReward(coreService.getReward());
+        return ResponseEntity.ok(block);
 
-        return block;
+
     }
 
     @RequestMapping(value = "/chain")
