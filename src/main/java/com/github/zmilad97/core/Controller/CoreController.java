@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-public class Controller { //TODO: controller name is a very general name, use a specialized name would be better
-    private static final Logger LOG = LoggerFactory.getLogger(Controller.class);
+public class CoreController {
+    private static final Logger LOG = LoggerFactory.getLogger(CoreController.class);
 
     private final CoreService coreService;
 
     @Autowired
-    public Controller(CoreService coreService) {
+    public CoreController(CoreService coreService) {
         this.coreService = coreService;
     }
 
@@ -30,20 +30,19 @@ public class Controller { //TODO: controller name is a very general name, use a 
 
     }
 
-    //TODO: could be removed now
-    @GetMapping("/config")
-    public Map<String,String> getCoreConfig() {                    //TODO : BETTER TO CONFIG TYPE TO SOMETHING ELSE INSTEAD OF MAP
-        Map<String,String> newMap = new HashMap<>();                 //TODO : NEED TO FIX REWARD PROBLEM
-        newMap.put("reward", String.valueOf(this.coreService.getReward()));
-        newMap.put("difficulty", this.coreService.getDifficultyLevel());
-        return newMap;
-
-    }
+    //TODO: could be removed now   : checked !
+//    @GetMapping("/config")
+//    public Map<String,String> getCoreConfig() {
+//        Map<String,String> newMap = new HashMap<>();                 //TODO : NEED TO FIX REWARD PROBLEM
+//        newMap.put("reward", String.valueOf(this.coreService.getReward()));
+//        newMap.put("difficulty", this.coreService.getDifficultyLevel());
+//        return newMap;
+//    }
 
     @RequestMapping(value = "/pow", method = RequestMethod.POST)
     public void pow(@RequestBody Block block) {
         //TODO FIX DATE PROBLEM
-        LOG.trace("pow requested: {}",block);
+        LOG.info("pow requested: {}",block);
         coreService.addBlock(block, coreService);
     }
 
@@ -62,7 +61,7 @@ public class Controller { //TODO: controller name is a very general name, use a 
     public Block sendBlock() {
 
         Block block = new Block();
-        block.setDate(new java.util.Date());
+        block.setDate(new java.util.Date().toString());
         block.setIndex(coreService.getChain().size() - 1);
         block.setPreviousHash(coreService.getChain().get(coreService.getChain().size() - 1).getPreviousHash());
         block.setTransactions(coreService.getCurrentTransaction());
@@ -72,7 +71,7 @@ public class Controller { //TODO: controller name is a very general name, use a 
         return block;
     }
 
-    @GetMapping("/chain")
+    @RequestMapping(value = "/chain")
     public List<Block> chain() {
         return coreService.getChain();
     }

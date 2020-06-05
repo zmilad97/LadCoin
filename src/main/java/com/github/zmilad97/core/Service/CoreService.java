@@ -5,6 +5,8 @@ import com.github.zmilad97.core.Module.Block;
 import com.github.zmilad97.core.Module.Transaction;
 import com.github.zmilad97.core.Module.Wallet;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.security.NoSuchAlgorithmException;
@@ -14,14 +16,15 @@ import java.util.List;
 @Service
 public class CoreService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
     private double reward = 50;
+    private final int changeRewardAmountPer = 5;
+    Cryptography cryptography;
     private List<Block> chain;
     private List<Transaction> currentTransaction;
     private List<Wallet> walletList;
-
-    Cryptography cryptography;
 
     public CoreService() {
         cryptography = new Cryptography();
@@ -39,7 +42,7 @@ public class CoreService {
 
     @NotNull
     private Block generateGenesis() {
-        Block genesis = new Block(0, new java.util.Date(), null);
+        Block genesis = new Block(0, new java.util.Date().toString(), null);
         genesis.setPreviousHash(null);
         String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
         try {
@@ -53,12 +56,13 @@ public class CoreService {
     public void addBlock(Block block, CoreService coreService) {
         if (validMine(block)) {
             coreService.doTransactions(block, coreService);
+
             coreService.addBlockToChain(block);
             coreService.getCurrentTransaction().clear();
-            System.out.println("Block has been added to chain");
+            LOG.info("Block has been added to chain");
 
         } else
-            System.out.println("Block Is invalid");
+            LOG.info("Block Is invalid");
     }
 
 
@@ -68,12 +72,12 @@ public class CoreService {
         }
     }
 
-    public void validTransaction(@NotNull Transaction transaction, @NotNull CoreService coreService) {
+    public void validTransaction(@NotNull Transaction transaction, @NotNull CoreService coreService) //TODO fix Transaction then fix this method
+     {
         //finding Wallets
         Wallet sourceWallet = null;
         Wallet destinationWallet= null;
 
-        System.out.println(transaction.getTransactionId() +"  ::  "+ transaction.getSource());
         for (int i = 0; i < coreService.getWalletList().size(); i++) {
             System.out.println(coreService.getWalletList().get(i).getPublicSignature());
             if (coreService.getWalletList().get(i).getPublicSignature().equals(transaction.getSource()))
@@ -101,8 +105,10 @@ public class CoreService {
             for (int i = 0; i < block.getTransactions().size(); i++)
                 transactionStringToHash += block.getTransactions().get(i).getTransactionHash();
 
-            String stringToHash = block.getNonce() + block.getIndex() + block.getPreviousHash() + transactionStringToHash;
-            System.out.println(stringToHash);
+            String stringToHash = block.getNonce() + block.getIndex() +block.getDate()+ block.getPreviousHash() + transactionStringToHash;
+            LOG.info(stringToHash);
+            LOG.info("Block hash : {}",block.getHash());
+            LOG.info("crypto : {} ",cryptography.toHexString(cryptography.getSha(stringToHash)));
             if (cryptography.toHexString(cryptography.getSha(stringToHash)).equals(block.getHash()))
                 return true;
 
@@ -133,8 +139,9 @@ public class CoreService {
         return reward;
     }
 
-    public void setReward(double reward) {
-        this.reward = reward;
+    public void setReward() {
+        if(chain.size()>changeRewardAmountPer)
+        this.reward = this.reward/2;
     }
 
     public List<Block> getChain() {
