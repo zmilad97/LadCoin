@@ -62,7 +62,7 @@ public class CoreController {
 
         Block block = new Block();
         block.setDate(new java.util.Date().toString());
-        block.setIndex(coreService.getChain().size() - 1);
+        block.setIndex(coreService.getChain().size() );
         block.setPreviousHash(coreService.getChain().get(coreService.getChain().size() - 1).getPreviousHash());
         block.setTransactions(coreService.getCurrentTransaction());
         block.setDifficultyLevel(coreService.getDifficultyLevel());
