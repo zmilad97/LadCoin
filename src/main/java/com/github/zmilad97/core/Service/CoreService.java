@@ -2,7 +2,7 @@ package com.github.zmilad97.core.Service;
 
 
 import com.github.zmilad97.core.Module.Block;
-import com.github.zmilad97.core.Module.Transaction;
+import com.github.zmilad97.core.Module.Transaction.Transaction;
 import com.github.zmilad97.core.Module.Wallet;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -38,6 +38,7 @@ public class CoreService {
 
     }
 
+
     @NotNull
     private Block generateGenesis() {
         Block genesis = new Block(0, new java.util.Date().toString(), null);
@@ -51,7 +52,7 @@ public class CoreService {
         return genesis;
     }
 
-    public void addBlock(Block block) {
+  /*  public void addBlock(Block block) {
         if (validMine(block)) {
             this.doTransactions(block);
 
@@ -61,16 +62,17 @@ public class CoreService {
 
         } else
             LOG.info("Block Is invalid");
-    }
+    }*/
 
 
-    private void doTransactions(@NotNull Block block) {
+ /*   private void doTransactions(@NotNull Block block) {
         for (int i = 0; i < block.getTransactions().size(); i++) {
             validTransaction(block.getTransactions().get(i));
         }
-    }
+    }*/
 
-    public void validTransaction(@NotNull Transaction transaction) //TODO fix Transaction then fix this method
+    //TODO fix Transaction then fix this method
+    /*public void validTransaction(@NotNull Transaction transaction)
      {
         //finding Wallets
         Wallet sourceWallet = null;
@@ -95,18 +97,35 @@ public class CoreService {
                              this.getWalletList().get(i).setAmount(destinationWallet.getAmount()+transaction.getAmount());
                     }
                 }
+        }*/
+
+
+    public Transaction findUTXOs(String signature) {
+        String hashSignature = null;
+        try {
+            hashSignature = cryptography.toHexString(cryptography.getSha(signature));
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
         }
+        List<Block> ch = this.getChain();
+        for (int i = ch.size(); ch.size() > 0; i--)
+            for (int j = ch.get(i).getTransactions().size(); j >= 0; j--)
+                if (ch.get(i).getTransactions().get(j).getTransactionOutput().getPublicKeyScript().equals(hashSignature))
+                    return ch.get(i).getTransactions().get(j);
+        return null;
+    }
+
 
     private boolean validMine(@NotNull Block block) {
         try {
             String transactionStringToHash = "";
             for (int i = 0; i < block.getTransactions().size(); i++)
-                transactionStringToHash += block.getTransactions().get(i).getTransactionHash();
+                transactionStringToHash += block.getTransactions().get(i);
 
-            String stringToHash = block.getNonce() + block.getIndex() +block.getDate()+ block.getPreviousHash() + transactionStringToHash;
+            String stringToHash = block.getNonce() + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
             LOG.info(stringToHash);
-            LOG.info("Block hash : {}",block.getHash());
-            LOG.info("crypto : {} ",cryptography.toHexString(cryptography.getSha(stringToHash)));
+            LOG.info("Block hash : {}", block.getHash());
+            LOG.info("crypto : {} ", cryptography.toHexString(cryptography.getSha(stringToHash)));
             if (cryptography.toHexString(cryptography.getSha(stringToHash)).equals(block.getHash()))
                 return true;
 
@@ -138,8 +157,8 @@ public class CoreService {
     }
 
     public void setReward() {
-        if(chain.size()>changeRewardAmountPer)
-        this.reward = this.reward/2;
+        if (chain.size() > changeRewardAmountPer)
+            this.reward = this.reward / 2;
     }
 
     public List<Block> getChain() {
@@ -159,17 +178,17 @@ public class CoreService {
         return walletList;
     }
 
-    public void addTransaction(Transaction transaction){
+    public void addTransaction(Transaction transaction) {
         currentTransaction.add(transaction);
     }
 
 
-    public void addWalletToWalletList(Wallet wallet){
+    public void addWalletToWalletList(Wallet wallet) {
         this.walletList.add(wallet);
     }
 
-    public boolean isCurrentTransactionEmpty(){
-       return this.currentTransaction.isEmpty();
+    public boolean isCurrentTransactionEmpty() {
+        return this.currentTransaction.isEmpty();
     }
 
     public void clean() {

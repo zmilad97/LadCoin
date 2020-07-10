@@ -2,7 +2,7 @@ package com.github.zmilad97.core.Controller;
 
 
 import com.github.zmilad97.core.Module.Block;
-import com.github.zmilad97.core.Module.Transaction;
+import com.github.zmilad97.core.Module.Transaction.Transaction;
 import com.github.zmilad97.core.Module.Wallet;
 import com.github.zmilad97.core.Service.CoreService;
 import org.slf4j.Logger;
@@ -32,14 +32,11 @@ public class CoreController {
 
     }
 
-
-
-
     @RequestMapping(value = "/pow", method = RequestMethod.POST)
     public void pow(@RequestBody Block block) {
 
         LOG.info("pow requested: {}", block);
-        coreService.addBlock(block);
+//        coreService.addBlock(block);  TODO : FIX THIS
     }
 
 
@@ -51,6 +48,12 @@ public class CoreController {
     @RequestMapping(value = "/wallet/status", method = RequestMethod.POST)
     public Wallet walletStatus(@RequestBody String pubKey) {
         return null;                                    //TODO : FIX THIS
+    }
+
+    @RequestMapping(value = "/UTXOs",method = RequestMethod.POST)
+    public Transaction UTXOs(@RequestBody String signature){
+
+        return new Transaction();
     }
 
     @RequestMapping(value = "/block")

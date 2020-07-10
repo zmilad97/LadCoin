@@ -1,3 +1,4 @@
+/*
 package com.github.zmilad97.core.Module;
 
 import com.github.zmilad97.core.Service.Cryptography;
@@ -83,3 +84,4 @@ public class Transaction {
         this.amount = amount;
     }
 }
+*/

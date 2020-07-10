@@ -1,5 +1,7 @@
 package com.github.zmilad97.core.Module;
 
+import com.github.zmilad97.core.Module.Transaction.Transaction;
+
 import java.util.Date;
 import java.util.List;
 
