@@ -100,18 +100,23 @@ public class CoreService {
         }*/
 
 
-    public Transaction findUTXOs(String signature) {
-        String hashSignature = null;
-        try {
-            hashSignature = cryptography.toHexString(cryptography.getSha(signature));
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+    public Transaction findUTXOs(String pubKey) {  //TODO : Complete This
+//        String hashSignature = null;
+//        try {
+//            hashSignature = cryptography.toHexString(cryptography.getSha(signature));
+//        } catch (NoSuchAlgorithmException e) {
+//            e.printStackTrace();
+//        }
+        List<Block> blockChain = this.getChain();
+        for (int i = blockChain.size()-1; blockChain.size() > 0; i--) {
+            for (int j = blockChain.get(i).getTransactions().size()-1; j >=0; j--) {
+                if (blockChain.get(i).getTransactions().get(j).getTransactionOutput().getPublicKeyScript().equals(pubKey)) {
+                    LOG.debug("Found");
+                    return blockChain.get(i).getTransactions().get(j);
+                }
+            }
         }
-        List<Block> ch = this.getChain();
-        for (int i = ch.size(); ch.size() > 0; i--)
-            for (int j = ch.get(i).getTransactions().size(); j >= 0; j--)
-                if (ch.get(i).getTransactions().get(j).getTransactionOutput().getPublicKeyScript().equals(hashSignature))
-                    return ch.get(i).getTransactions().get(j);
+        LOG.debug("Transaction not Found : 404");
         return null;
     }
 

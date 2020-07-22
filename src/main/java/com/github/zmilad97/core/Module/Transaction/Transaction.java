@@ -8,6 +8,7 @@ public class Transaction {
     private TransactionOutput TransactionOutput;
     private String transactionHash;
 
+
     public String getTransactionId() {
         return transactionId;
     }
