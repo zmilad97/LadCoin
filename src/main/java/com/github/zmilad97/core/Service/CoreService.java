@@ -3,6 +3,7 @@ package com.github.zmilad97.core.Service;
 
 import com.github.zmilad97.core.Module.Block;
 import com.github.zmilad97.core.Module.Transaction.Transaction;
+import com.github.zmilad97.core.Module.Transaction.TransactionOutput;
 import com.github.zmilad97.core.Module.Wallet;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -117,7 +118,10 @@ public class CoreService {
             }
         }
         LOG.debug("Transaction not Found : 404");
-        return null;
+        Transaction nullTransaction = new Transaction();
+        nullTransaction.setTransactionId("404");
+        nullTransaction.setTransactionOutput(new TransactionOutput(0,"404"));
+        return nullTransaction;
     }
 
 
