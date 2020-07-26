@@ -101,29 +101,37 @@ public class CoreService {
         }*/
 
 
-    public Transaction findUTXOs(String pubKey) {  //TODO : Complete This
-//        String hashSignature = null;
-//        try {
-//            hashSignature = cryptography.toHexString(cryptography.getSha(signature));
-//        } catch (NoSuchAlgorithmException e) {
-//            e.printStackTrace();
-//        }
+    public List<Transaction> findUTXOs(String pubKey) {  //TODO : Complete This
+        List<Transaction> UTXOsList = new ArrayList<>();
+
         List<Block> blockChain = this.getChain();
-        for (int i = blockChain.size()-1; blockChain.size() > 0; i--) {
-            for (int j = blockChain.get(i).getTransactions().size()-1; j >=0; j--) {
+        for (int i = blockChain.size() - 1; blockChain.size() > 0; i--) {
+            for (int j = blockChain.get(i).getTransactions().size() - 1; j >= 0; j--) {
                 if (blockChain.get(i).getTransactions().get(j).getTransactionOutput().getPublicKeyScript().equals(pubKey)) {
                     LOG.debug("Found");
-                    return blockChain.get(i).getTransactions().get(j);
+                    if (UTXOsList.isEmpty())
+                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
+                    else if (transactionIsUnspent(blockChain.get(i).getTransactions().get(j), UTXOsList))
+                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
                 }
             }
         }
         LOG.debug("Transaction not Found : 404");
         Transaction nullTransaction = new Transaction();
         nullTransaction.setTransactionId("404");
-        nullTransaction.setTransactionOutput(new TransactionOutput(0,"404"));
-        return nullTransaction;
+        nullTransaction.setTransactionOutput(new TransactionOutput(0, "404"));
+        return UTXOsList;
     }
 
+    //Check the UTXOs unspent or not
+    private boolean transactionIsUnspent(Transaction transaction, List<Transaction> UTXOsList) {
+        for (int i = UTXOsList.size() - 1; i >= 0; i--)
+            if (UTXOsList.get(i).getTransactionHash()
+                    .equals(transaction.getTransactionInput().getPreviousTransactionHash()))
+                return false;
+
+        return true;
+    }
 
     private boolean validMine(@NotNull Block block) {
         try {

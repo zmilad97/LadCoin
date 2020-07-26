@@ -3,7 +3,7 @@ package com.github.zmilad97.core.Module.Transaction;
 
 public class TransactionInput {
     private String previousTransactionHash;
-    private String indexReferenced;
+    private int indexReferenced;
     private String scriptSignature;
 
     public String getPreviousTransactionHash() {
@@ -14,11 +14,11 @@ public class TransactionInput {
         this.previousTransactionHash = previousTransactionHash;
     }
 
-    public String getIndexReferenced() {
+    public int getIndexReferenced() {
         return indexReferenced;
     }
 
-    public void setIndexReferenced(String indexReferenced) {
+    public void setIndexReferenced(int indexReferenced) {
         this.indexReferenced = indexReferenced;
     }
 

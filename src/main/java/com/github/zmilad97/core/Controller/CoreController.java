@@ -54,13 +54,13 @@ public class CoreController {
     }
 
     @RequestMapping(value = "/UTXOs", method = RequestMethod.POST)
-    public ResponseEntity<Transaction> UTXOs(@RequestBody String publicKey) {
+    public ResponseEntity<List<Transaction>> UTXOs(@RequestBody String publicKey) {
         LOG.info(publicKey);
 //        EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(publicKey));
-        Transaction transaction = coreService.findUTXOs(publicKey);
-        LOG.debug(transaction.getTransactionId());
-        LOG.debug(transaction.getTransactionOutput().getPublicKeyScript());
-        return ResponseEntity.ok(transaction) ;
+        List<Transaction> UTXOsList = coreService.findUTXOs(publicKey);
+//        LOG.debug(transaction.getTransactionId());
+//        LOG.debug(transaction.getTransactionOutput().getPublicKeyScript());
+        return ResponseEntity.ok(UTXOsList) ;
     }
 
     @RequestMapping(value = "/block")
@@ -100,7 +100,7 @@ public class CoreController {
         Transaction transaction = new Transaction();
         TransactionInput transactionInput = new TransactionInput();
         TransactionOutput transactionOutput = new TransactionOutput();
-        transactionInput.setIndexReferenced("12");
+        transactionInput.setIndexReferenced(12);
         transactionInput.setPreviousTransactionHash("null");
         transactionInput.setScriptSignature("null");
         transactionOutput.setAmount(50);
@@ -126,7 +126,7 @@ public class CoreController {
         TransactionOutput transactionOutput = new TransactionOutput();
 
         transactionInput.setPreviousTransactionHash(null);
-        transactionInput.setIndexReferenced("20");
+        transactionInput.setIndexReferenced(20);
         transactionInput.setScriptSignature(null);
 
         transactionOutput.setPublicKeyScript("s");
