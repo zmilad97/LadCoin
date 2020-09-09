@@ -35,36 +35,37 @@ public class CoreController {
 
     }
 
-    @RequestMapping(value = "/pow", method = RequestMethod.POST)
-    public void pow(@RequestBody Block block) {
-
-        LOG.info("pow requested: {}", block);
-//        coreService.addBlock(block);  TODO : FIX THIS
+    @RequestMapping(value = "/validMine", method = RequestMethod.POST)
+    public void validMine(@RequestBody Block block) {
+//        Block block =new Block();
+        LOG.info("validating : {}", block);
+        coreService.addBlock(block);
     }
 
 
     @RequestMapping(value = "/transaction/new", method = RequestMethod.POST)
     public void newTransaction(@RequestBody Transaction transaction) {
-        coreService.getCurrentTransaction().add(transaction);    //TODO : FIX TRANSACTION-ID PROBLEM (MAKE IT AUTO GENERATE)
+        transaction.setTransactionId(coreService.getTransactionId());
+        coreService.getCurrentTransaction().add(transaction);
     }
 
+/*
     @RequestMapping(value = "/wallet/status", method = RequestMethod.POST)
     public Wallet walletStatus(@RequestBody String pubKey) {
-        return null;                                    //TODO : FIX THIS
+        return null;
     }
+*/
 
     @RequestMapping(value = "/UTXOs", method = RequestMethod.POST)
-    public ResponseEntity<List<Transaction>> UTXOs(@RequestBody String publicKey) {
-        LOG.info(publicKey);
-//        EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(publicKey));
-        List<Transaction> UTXOsList = coreService.findUTXOs(publicKey);
-//        LOG.debug(transaction.getTransactionId());
-//        LOG.debug(transaction.getTransactionOutput().getPublicKeyScript());
-        return ResponseEntity.ok(UTXOsList) ;
+    public List<Transaction> UTXOs(@RequestBody String signature) {
+        LOG.info(signature);
+        List<Transaction> UTXOsList = coreService.findUTXOs(signature);
+        return UTXOsList;
     }
 
     @RequestMapping(value = "/block")
     public ResponseEntity<Block> sendBlock() {
+        LOG.debug("sending Block");
 
         if (coreService.isCurrentTransactionEmpty())
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -76,9 +77,8 @@ public class CoreController {
         block.setTransactions(coreService.getCurrentTransaction());
         block.setDifficultyLevel(coreService.getDifficultyLevel());
         block.setReward(coreService.getReward());
+
         return ResponseEntity.ok(block);
-
-
     }
 
     @RequestMapping(value = "/chain")
@@ -96,15 +96,16 @@ public class CoreController {
 
     @RequestMapping(value = "/test/block", method = RequestMethod.GET)
     public void addTestBlock() {
-        String pubKeyScript = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEF25QbMKZV5wJ/tw9BjBvx137bIQwbJR76bYkwAQeKbn9xRPPaMNpu0hWRlZt8MUxvGvn/ln5PxPHB+cmbmacZw==";
+        String signature = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEF25QbMKZV5wJ/tw9BjBvx137bIQwbJR76bYkwAQeKbn9xRPPaMNpu0hWRlZt8MUxvGvn/ln5PxPHB+cmbmacZw==";
         Transaction transaction = new Transaction();
+        transaction.setTransactionHash("test");
         TransactionInput transactionInput = new TransactionInput();
         TransactionOutput transactionOutput = new TransactionOutput();
         transactionInput.setIndexReferenced(12);
-        transactionInput.setPreviousTransactionHash("null");
-        transactionInput.setScriptSignature("null");
+        transactionInput.addPreviousTransactionHash(0, "test");
+        transactionInput.setPubKey("null");
         transactionOutput.setAmount(50);
-        transactionOutput.setPublicKeyScript(pubKeyScript);
+        transactionOutput.setSignature(signature);
         transaction.setTransactionId("80");
         transaction.setTransactionInput(transactionInput);
         transaction.setTransactionOutput(transactionOutput);
@@ -118,28 +119,24 @@ public class CoreController {
     }
 
 
-
     @RequestMapping(value = "/test/transaction", method = RequestMethod.GET)
-    public void addTestTransaction(){
+    public void addTestTransaction() {
         Transaction transaction = new Transaction();
         TransactionInput transactionInput = new TransactionInput();
         TransactionOutput transactionOutput = new TransactionOutput();
 
-        transactionInput.setPreviousTransactionHash(null);
+        transactionInput.addPreviousTransactionHash(0,"hash 0 test");
         transactionInput.setIndexReferenced(20);
-        transactionInput.setScriptSignature(null);
+        transactionInput.setPubKey("pubkey test");
 
-        transactionOutput.setPublicKeyScript("s");
+        transactionOutput.setSignature("signature test");
         transactionOutput.setAmount(200);
 
         transaction.setTransactionId("test");
         transaction.setTransactionOutput(transactionOutput);
         transaction.setTransactionInput(transactionInput);
-
+        transaction.setTransactionHash("tst 404");
         coreService.addTransaction(transaction);
-
-
-
 
 
     }

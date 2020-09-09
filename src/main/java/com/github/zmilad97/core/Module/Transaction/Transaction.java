@@ -3,7 +3,7 @@ package com.github.zmilad97.core.Module.Transaction;
 
 public class Transaction {
 
-    private String transactionId;       //TODO need to fix this class
+    private String transactionId;
     private TransactionInput TransactionInput;
     private TransactionOutput TransactionOutput;
     private String transactionHash;
@@ -32,8 +32,11 @@ public class Transaction {
         this.TransactionOutput = transactionOutput;
     }
 
-    public String getTransactionHash() {   //TODO : Think About This Method
+    public void setTransactionHash(String transactionHash) {
+        this.transactionHash = transactionHash;
+    }
 
+    public String getTransactionHash() {   //TODO : Think About This Method
         return this.transactionHash;
     }
 }

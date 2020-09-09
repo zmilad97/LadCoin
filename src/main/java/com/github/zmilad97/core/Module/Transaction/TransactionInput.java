@@ -1,17 +1,26 @@
 package com.github.zmilad97.core.Module.Transaction;
 
 
-public class TransactionInput {
-    private String previousTransactionHash;
-    private int indexReferenced;
-    private String scriptSignature;
+import java.util.HashMap;
 
-    public String getPreviousTransactionHash() {
-        return previousTransactionHash;
+public class TransactionInput {
+    private HashMap<Integer,String> previousTransactionHash;
+    private int indexReferenced;
+    private String pubKey;
+
+    public TransactionInput() {
+        this.previousTransactionHash = new HashMap<Integer, String>();
     }
 
-    public void setPreviousTransactionHash(String previousTransactionHash) {
+    public void addPreviousTransactionHash(int i, String s ){
+        previousTransactionHash.put(i,s);
+    }
+    public void setPreviousTransactionHash(HashMap<Integer, String> previousTransactionHash) {
         this.previousTransactionHash = previousTransactionHash;
+    }
+
+    public HashMap<Integer, String> getPreviousTransactionHash() {
+        return previousTransactionHash;
     }
 
     public int getIndexReferenced() {
@@ -22,12 +31,12 @@ public class TransactionInput {
         this.indexReferenced = indexReferenced;
     }
 
-    public String getScriptSignature() {
+    public String getPubKey() {
 
-        return scriptSignature;
+        return pubKey;
     }
 
-    public void setScriptSignature(String scriptSignature) {
-        this.scriptSignature = scriptSignature;
+    public void setPubKey(String scriptSignature) {
+        this.pubKey = scriptSignature;
     }
 }
