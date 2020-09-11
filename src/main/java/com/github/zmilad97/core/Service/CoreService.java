@@ -1,6 +1,8 @@
 package com.github.zmilad97.core.Service;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.zmilad97.core.Module.Block;
 import com.github.zmilad97.core.Module.Transaction.Transaction;
 import com.github.zmilad97.core.Module.Transaction.TransactionOutput;
@@ -10,6 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
@@ -31,6 +38,7 @@ public class CoreService {
     private List<Block> chain;
     private List<Transaction> currentTransaction;
     private List<Wallet> walletList;
+    private List<String> nodes;
 
     public CoreService() {
         cryptography = new Cryptography();
@@ -60,15 +68,8 @@ public class CoreService {
 
 
     public String getTransactionId() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("CHA");
-        sb.append(chain.size() - 1);
-        sb.append("TRX");
-        sb.append(currentTransaction.size() - 1);
-        sb.append("RAND");
-        sb.append(new Random(1024));
+        return "CHA" + (chain.size() - 1) + "TRX" + (currentTransaction.size() - 1) + "RAND" + (new Random(1024));
 
-        return sb.toString();
     }
 
     public void addBlock(Block block) {
@@ -107,8 +108,7 @@ public class CoreService {
         EncodedKeySpec encodedKeySpec = null;
         try {
             encodedKeySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(transaction.getTransactionInput().getPubKey()));
-        }
-        catch (IllegalArgumentException e){
+        } catch (IllegalArgumentException e) {
             LOG.error(e.getLocalizedMessage()); //TODO fix this
         }
         KeyFactory keyFactory;
@@ -186,7 +186,7 @@ public class CoreService {
     private boolean transactionIsUnspent(Transaction transaction, List<Transaction> UTXOsList) {
         LOG.debug(" unspent Transactions ");
         for (int i = UTXOsList.size() - 1; i >= 0; i--)
-            for (int j = transaction.getTransactionInput().getPreviousTransactionHash().size() - 1; j >= 0; i--)
+            for (int j = transaction.getTransactionInput().getPreviousTransactionHash().size() - 1; j >= 0; j--)
                 if (UTXOsList.get(i).getTransactionHash()
                         .equals(transaction.getTransactionInput().getPreviousTransactionHash().get(j)))
                     return false;
@@ -196,9 +196,9 @@ public class CoreService {
 
     private boolean validMine(@NotNull Block block) {
         try {
-            String transactionStringToHash = "";
+            StringBuilder transactionStringToHash = new StringBuilder();
             for (int i = 0; i < block.getTransactions().size(); i++)
-                transactionStringToHash += block.getTransactions().get(i).getTransactionHash();
+                transactionStringToHash.append(block.getTransactions().get(i).getTransactionHash());
 
             String stringToHash = block.getNonce() + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
             LOG.info(stringToHash);
@@ -212,6 +212,121 @@ public class CoreService {
         }
         return false;
     }
+
+    private boolean validChain(List<Block> chain) {
+        Block lastBlock = chain.get(0);
+        Block block;
+        for (int i = 1; i < chain.size(); i++) {
+            block = chain.get(i);
+
+            if (!(block.getPreviousHash().equals(computeHash(lastBlock).getHash())))
+                return false;
+
+            if (block.getNonce() != computeHash(block).getNonce())
+                return false;
+
+            lastBlock = block;
+        }
+
+        return true;
+    }
+
+    public List<Block> resolveConflict() {
+        List<String> nodeList = this.nodes;
+        List<Block> newChain = null;
+        List<Block> chain;
+        List<Block> blockList;
+        int maxSize = this.chain.size();
+        int size;
+
+        for (String node : nodeList) {
+            blockList = findChain(node);
+            if (blockList != null) {
+                size = blockList.size();
+                chain = blockList;
+                if (size > maxSize && validChain(chain)) {
+                    maxSize = size;
+                    newChain = chain;
+                }
+            }
+        }
+        if (newChain != null) {
+            this.chain = newChain;
+            LOG.info("Chain  has been replaced");
+            return this.chain;
+        }
+        return null;
+    }
+
+    public List<Block> findChain(String node) {
+
+        final HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_2)
+                .build();
+        String address = "http://" + node + "/chain";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .GET()
+                .uri(URI.create(address))
+                .setHeader("User-Agent", "Miner")
+                .build();
+
+        HttpResponse<String> response = null;
+        try {
+
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 404)
+                return null;
+            LOG.debug(response.body());
+        } catch (IOException | InterruptedException | NullPointerException e) {
+            e.printStackTrace();
+        }
+
+        ArrayList<Block> blockList = null;
+        try {
+            if (response != null) {
+                blockList = new ObjectMapper().readValue(response.body(), ArrayList.class);
+            }
+        } catch (NullPointerException|JsonProcessingException e) {
+            LOG.error(e.getLocalizedMessage());
+        }
+
+        return blockList;
+    }
+
+
+    public Block computeHash(@NotNull Block block) {
+        String hash;
+
+        long nonce = -1;
+        StringBuilder transactionStringToHash = new StringBuilder();
+
+        for (int i = 0; i < block.getTransactions().size(); i++)
+            transactionStringToHash.append(block.getTransactions().get(i).getTransactionHash());
+
+        do {
+            nonce++;
+            String stringToHash = nonce + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
+            Cryptography cryptography = new Cryptography();
+
+            try {
+                hash = cryptography.toHexString(cryptography.getSha(stringToHash));
+                if (hash.startsWith(block.getDifficultyLevel())) {
+                    LOG.trace("string to hash {}", stringToHash);
+                    break;
+                }
+            } catch (NoSuchAlgorithmException e) {
+                LOG.error(e.getLocalizedMessage());
+            }
+
+        } while (true);
+
+        block.setNonce(nonce);
+        block.setHash(hash);
+        return block;
+    }
+
 
     private void setDifficultyLevel() {
         if (chain.size() % 5 == 0)
@@ -271,5 +386,13 @@ public class CoreService {
 
     public void clean() {
         currentTransaction.clear();
+    }
+
+    public List<String> getNodes() {
+        return nodes;
+    }
+
+    public void addNode(String node) {
+        this.nodes.add(node);
     }
 }

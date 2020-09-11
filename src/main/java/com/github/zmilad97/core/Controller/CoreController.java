@@ -7,6 +7,7 @@ import com.github.zmilad97.core.Module.Transaction.TransactionInput;
 import com.github.zmilad97.core.Module.Transaction.TransactionOutput;
 import com.github.zmilad97.core.Module.Wallet;
 import com.github.zmilad97.core.Service.CoreService;
+import org.apache.tomcat.jni.Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URL;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
@@ -21,7 +23,6 @@ import java.util.*;
 @RestController
 public class CoreController {
     private static final Logger LOG = LoggerFactory.getLogger(CoreController.class);
-
     private final CoreService coreService;
 
     @Autowired
@@ -59,8 +60,7 @@ public class CoreController {
     @RequestMapping(value = "/UTXOs", method = RequestMethod.POST)
     public List<Transaction> UTXOs(@RequestBody String signature) {
         LOG.info(signature);
-        List<Transaction> UTXOsList = coreService.findUTXOs(signature);
-        return UTXOsList;
+        return coreService.findUTXOs(signature);
     }
 
     @RequestMapping(value = "/block")
@@ -91,6 +91,17 @@ public class CoreController {
         System.out.println(wallet);
         coreService.addWalletToWalletList(new Wallet(wallet, 0));
 
+    }
+
+
+    @RequestMapping(value = "/node/register", method = RequestMethod.POST)
+    public void registerNode(URL url) {
+        coreService.addNode(url.getAuthority());
+    }
+
+    @RequestMapping(value = "/resolve", method = RequestMethod.GET)
+    public List<Block> resolve() {
+        return coreService.resolveConflict();
     }
 
 
@@ -125,7 +136,7 @@ public class CoreController {
         TransactionInput transactionInput = new TransactionInput();
         TransactionOutput transactionOutput = new TransactionOutput();
 
-        transactionInput.addPreviousTransactionHash(0,"hash 0 test");
+        transactionInput.addPreviousTransactionHash(0, "hash 0 test");
         transactionInput.setIndexReferenced(20);
         transactionInput.setPubKey("pubkey test");
 
