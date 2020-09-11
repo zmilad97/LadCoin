@@ -88,17 +88,19 @@ public class CoreService {
     private void doTransactions(@NotNull Block block) {
         LOG.debug("block transaction size " + block.getTransactions().size());
         for (int i = 0; i < block.getTransactions().size(); i++) {
-            LOG.debug("i " + i);
-            LOG.debug(block.getTransactions().get(0).getTransactionHash());
-            if (!(validTransaction(block.getTransactions().get(i))))
-                block.getTransactions().remove(block.getTransactions().get(i));
+            if (!(block.getTransactions().get(i).getTransactionId().equals("REWARD" + block.getIndex()))) {
+                LOG.debug("i " + i);
+                LOG.debug(block.getTransactions().get(0).getTransactionHash());
+                if (!(validTransaction(block.getTransactions().get(i))))
+                    block.getTransactions().remove(block.getTransactions().get(i));
+            }
         }
     }
 
 
     public boolean validTransaction(@NotNull Transaction transaction) {
-        LOG.debug("in valid");
-        //just for test
+        if(transaction.getTransactionId().startsWith("REWARD"))
+            return true;
         LOG.debug(transaction.getTransactionInput().getPubKey());
         if (transaction.getTransactionInput().getPubKey().equals("null"))
             return true;
@@ -288,7 +290,7 @@ public class CoreService {
             if (response != null) {
                 blockList = new ObjectMapper().readValue(response.body(), ArrayList.class);
             }
-        } catch (NullPointerException|JsonProcessingException e) {
+        } catch (NullPointerException | JsonProcessingException e) {
             LOG.error(e.getLocalizedMessage());
         }
 
