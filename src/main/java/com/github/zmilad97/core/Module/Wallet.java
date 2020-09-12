@@ -6,7 +6,7 @@
  * Vestibulum commodo. Ut rhoncus gravida arcu.
  */
 
-package com.github.zmilad97.core.module;
+package com.github.zmilad97.core.Module;
 
 public class Wallet {
     private String publicSignature;

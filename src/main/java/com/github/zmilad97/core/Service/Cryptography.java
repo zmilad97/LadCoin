@@ -1,4 +1,4 @@
-package com.github.zmilad97.core.service;
+package com.github.zmilad97.core.Service;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;

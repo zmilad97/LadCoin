@@ -1,4 +1,4 @@
-package com.github.zmilad97.core.module.transaction;
+package com.github.zmilad97.core.Module.Transaction;
 
 public class TransactionOutput {
     private double amount;
