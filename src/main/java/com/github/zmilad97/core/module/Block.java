@@ -1,8 +1,7 @@
-package com.github.zmilad97.core.Module;
+package com.github.zmilad97.core.module;
 
-import com.github.zmilad97.core.Module.Transaction.Transaction;
+import com.github.zmilad97.core.module.transaction.Transaction;
 
-import java.util.Date;
 import java.util.List;
 
 public class Block {

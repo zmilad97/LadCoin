@@ -1,4 +1,4 @@
-package com.github.zmilad97.core.Module.Transaction;
+package com.github.zmilad97.core.module.transaction;
 
 
 import java.util.HashMap;
@@ -9,7 +9,7 @@ public class TransactionInput {
     private String pubKey;
 
     public TransactionInput() {
-        this.previousTransactionHash = new HashMap<Integer, String>();
+        this.previousTransactionHash = new HashMap<>();
     }
 
     public void addPreviousTransactionHash(int i, String s ){

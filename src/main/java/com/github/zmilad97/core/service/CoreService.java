@@ -1,12 +1,12 @@
-package com.github.zmilad97.core.Service;
+package com.github.zmilad97.core.service;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.zmilad97.core.Module.Block;
-import com.github.zmilad97.core.Module.Transaction.Transaction;
-import com.github.zmilad97.core.Module.Transaction.TransactionOutput;
-import com.github.zmilad97.core.Module.Wallet;
+import com.github.zmilad97.core.module.Block;
+import com.github.zmilad97.core.module.transaction.Transaction;
+import com.github.zmilad97.core.module.transaction.TransactionOutput;
+import com.github.zmilad97.core.module.Wallet;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
