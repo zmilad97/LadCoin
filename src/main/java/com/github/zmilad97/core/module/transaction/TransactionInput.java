@@ -1,4 +1,4 @@
-package com.github.zmilad97.core.Module.Transaction;
+package com.github.zmilad97.core.module.transaction;
 
 
 import java.util.HashMap;
