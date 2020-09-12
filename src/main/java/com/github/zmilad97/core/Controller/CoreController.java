@@ -7,7 +7,6 @@ import com.github.zmilad97.core.Module.Transaction.TransactionInput;
 import com.github.zmilad97.core.Module.Transaction.TransactionOutput;
 import com.github.zmilad97.core.Module.Wallet;
 import com.github.zmilad97.core.Service.CoreService;
-import org.apache.tomcat.jni.Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URL;
-import java.security.spec.EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 
 @RestController
@@ -28,23 +25,20 @@ public class CoreController {
     @Autowired
     public CoreController(CoreService coreService) {
         this.coreService = coreService;
-
     }
 
     @GetMapping("/connectionTest")
     public void testConnection() {
-
     }
 
-    @RequestMapping(value = "/validMine", method = RequestMethod.POST)
+    @PostMapping("/validMine")
     public void validMine(@RequestBody Block block) {
 //        Block block =new Block();
         LOG.info("validating : {}", block);
         coreService.addBlock(block);
     }
 
-
-    @RequestMapping(value = "/transaction/new", method = RequestMethod.POST)
+    @PostMapping("/transaction/new")
     public void newTransaction(@RequestBody Transaction transaction) {
         transaction.setTransactionId(coreService.getTransactionId());
         coreService.getCurrentTransaction().add(transaction);
@@ -57,13 +51,13 @@ public class CoreController {
     }
 */
 
-    @RequestMapping(value = "/UTXOs", method = RequestMethod.POST)
+    @PostMapping("/UTXOs")
     public List<Transaction> UTXOs(@RequestBody String signature) {
         LOG.info(signature);
         return coreService.findUTXOs(signature);
     }
 
-    @RequestMapping(value = "/block")
+    @GetMapping("/block")
     public ResponseEntity<Block> sendBlock() {
         LOG.debug("sending Block");
 
@@ -81,31 +75,28 @@ public class CoreController {
         return ResponseEntity.ok(block);
     }
 
-    @RequestMapping(value = "/chain")
+    @GetMapping("/chain")
     public List<Block> chain() {
         return coreService.getChain();
     }
 
-    @RequestMapping(value = "/wallet/add", method = RequestMethod.POST)
+    @PostMapping("/wallet/add")
     public void addWallet(@RequestBody String wallet) {
-        System.out.println(wallet);
         coreService.addWalletToWalletList(new Wallet(wallet, 0));
-
+        LOG.info("new wallet added {}",wallet);
     }
 
-
-    @RequestMapping(value = "/node/register", method = RequestMethod.POST)
+    @PostMapping("/node/register")
     public void registerNode(URL url) {
         coreService.addNode(url.getAuthority());
     }
 
-    @RequestMapping(value = "/resolve", method = RequestMethod.GET)
+    @GetMapping("/resolve")
     public List<Block> resolve() {
         return coreService.resolveConflict();
     }
 
-
-    @RequestMapping(value = "/test/block", method = RequestMethod.GET)
+    @GetMapping("/test/block")
     public void addTestBlock() {
         String signature = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEF25QbMKZV5wJ/tw9BjBvx137bIQwbJR76bYkwAQeKbn9xRPPaMNpu0hWRlZt8MUxvGvn/ln5PxPHB+cmbmacZw==";
         Transaction transaction = new Transaction();
@@ -125,12 +116,9 @@ public class CoreController {
         LOG.debug(String.valueOf(transaction));
         Block block = new Block(10, String.valueOf(new java.util.Date()), transactionList);
         coreService.getChain().add(block);
-
-
     }
 
-
-    @RequestMapping(value = "/test/transaction", method = RequestMethod.GET)
+    @GetMapping("/test/transaction")
     public void addTestTransaction() {
         Transaction transaction = new Transaction();
         TransactionInput transactionInput = new TransactionInput();
@@ -148,9 +136,5 @@ public class CoreController {
         transaction.setTransactionInput(transactionInput);
         transaction.setTransactionHash("tst 404");
         coreService.addTransaction(transaction);
-
-
     }
-
-
 }
