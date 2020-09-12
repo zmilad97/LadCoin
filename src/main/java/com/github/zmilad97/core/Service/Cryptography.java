@@ -6,12 +6,19 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class Cryptography {
+      private final MessageDigest md;
 
-    public byte[] getSha(String input) throws NoSuchAlgorithmException {
+      public Cryptography() {
+        try {
+          md = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+          throw new IllegalStateException(e);
+        }
+      }
 
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
+      public byte[] getSha(String input) {
         return md.digest(input.getBytes(StandardCharsets.UTF_8));
-    }
+      }
 
     public String toHexString(byte[] hash) {
 
