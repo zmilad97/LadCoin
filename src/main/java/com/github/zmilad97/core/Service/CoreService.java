@@ -30,10 +30,10 @@ import java.util.Random;
 public class CoreService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
+    private static final int CHANGE_REWARD_AMOUNT_PER = 5;
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
     private double reward = 50;
-    private final int changeRewardAmountPer = 5;
     Cryptography cryptography;
     private List<Block> chain;
     private List<Transaction> currentTransaction;
@@ -58,11 +58,7 @@ public class CoreService {
         Block genesis = new Block(0, new java.util.Date().toString(), new ArrayList<>());
         genesis.setPreviousHash(null);
         String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
-        try {
-            genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
+        genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
         return genesis;
     }
 
@@ -197,22 +193,15 @@ public class CoreService {
     }
 
     private boolean validMine(@NotNull Block block) {
-        try {
-            StringBuilder transactionStringToHash = new StringBuilder();
-            for (int i = 0; i < block.getTransactions().size(); i++)
-                transactionStringToHash.append(block.getTransactions().get(i).getTransactionHash());
+        StringBuilder transactionStringToHash = new StringBuilder();
+        for (int i = 0; i < block.getTransactions().size(); i++)
+            transactionStringToHash.append(block.getTransactions().get(i).getTransactionHash());
 
-            String stringToHash = block.getNonce() + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
-            LOG.info(stringToHash);
-            LOG.info("Block hash : {}", block.getHash());
-            LOG.info("crypto : {} ", cryptography.toHexString(cryptography.getSha(stringToHash)));
-            if (cryptography.toHexString(cryptography.getSha(stringToHash)).equals(block.getHash()))
-                return true;
-
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return false;
+        String stringToHash = block.getNonce() + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
+        LOG.info(stringToHash);
+        LOG.info("Block hash : {}", block.getHash());
+        LOG.info("crypto : {} ", cryptography.toHexString(cryptography.getSha(stringToHash)));
+        return cryptography.toHexString(cryptography.getSha(stringToHash)).equals(block.getHash());
     }
 
     private boolean validChain(List<Block> chain) {
@@ -312,14 +301,10 @@ public class CoreService {
             String stringToHash = nonce + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
             Cryptography cryptography = new Cryptography();
 
-            try {
-                hash = cryptography.toHexString(cryptography.getSha(stringToHash));
-                if (hash.startsWith(block.getDifficultyLevel())) {
-                    LOG.trace("string to hash {}", stringToHash);
-                    break;
-                }
-            } catch (NoSuchAlgorithmException e) {
-                LOG.error(e.getLocalizedMessage());
+            hash = cryptography.toHexString(cryptography.getSha(stringToHash));
+            if (hash.startsWith(block.getDifficultyLevel())) {
+                LOG.trace("string to hash {}", stringToHash);
+                break;
             }
 
         } while (true);
@@ -352,7 +337,7 @@ public class CoreService {
     }
 
     public void setReward() {
-        if (chain.size() > changeRewardAmountPer)
+        if (chain.size() > CHANGE_REWARD_AMOUNT_PER)
             this.reward = this.reward / 2;
     }
 
