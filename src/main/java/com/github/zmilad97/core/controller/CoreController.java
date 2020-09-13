@@ -5,7 +5,6 @@ import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
 import com.github.zmilad97.core.module.transaction.TransactionInput;
 import com.github.zmilad97.core.module.transaction.TransactionOutput;
-import com.github.zmilad97.core.module.Wallet;
 import com.github.zmilad97.core.service.CoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,12 +68,6 @@ public class CoreController {
     @GetMapping("/chain")
     public List<Block> chain() {
         return coreService.getChain();
-    }
-
-    @PostMapping("/wallet/add")
-    public void addWallet(@RequestBody String wallet) {
-        coreService.addWalletToWalletList(new Wallet(wallet, 0));
-        LOG.info("new wallet added {}",wallet);
     }
 
     @PostMapping("/node/register")

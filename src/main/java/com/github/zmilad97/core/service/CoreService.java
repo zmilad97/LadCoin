@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
 import com.github.zmilad97.core.module.transaction.TransactionOutput;
-import com.github.zmilad97.core.module.Wallet;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,6 @@ public class CoreService {
     private static final int CHANGE_REWARD_AMOUNT_PER = 5;
     private final ObjectMapper objectMapper;
     private final Map<String,Transaction> currentTransactions;
-    private final List<Wallet> walletList;
     private final Map<String, Transaction> chainIndex = new HashMap<>();
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
@@ -43,7 +41,6 @@ public class CoreService {
         this.objectMapper = new ObjectMapper();
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
-        walletList = new ArrayList<>();
         chain = new ArrayList<>();
         chain.add(generateGenesis());
 
@@ -331,18 +328,12 @@ public class CoreService {
         chain.add(block);
     }
 
-    public List<Wallet> getWalletList() {
-        return walletList;
-    }
 
     public void addTransaction(Transaction transaction) {
         currentTransactions.put(transaction.getTransactionHash(),transaction);
     }
 
 
-    public void addWalletToWalletList(Wallet wallet) {
-        this.walletList.add(wallet);
-    }
 
     public void clean() {
         currentTransactions.clear();
