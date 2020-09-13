@@ -21,28 +21,28 @@ import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @Service
 public class CoreService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
     private static final int CHANGE_REWARD_AMOUNT_PER = 5;
+    private final ObjectMapper objectMapper;
+    private final Map<String,Transaction> currentTransactions;
+    private final List<Wallet> walletList;
+    private final Map<String, Transaction> chainIndex = new HashMap<>();
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
     private double reward = 50;
     Cryptography cryptography;
     private List<Block> chain;
-    private List<Transaction> currentTransaction;
-    private List<Wallet> walletList;
     private List<String> nodes;
 
     public CoreService() {
+        this.objectMapper = new ObjectMapper();
         cryptography = new Cryptography();
-        currentTransaction = new ArrayList<>();
+        currentTransactions = new HashMap<>();
         walletList = new ArrayList<>();
         chain = new ArrayList<>();
         chain.add(generateGenesis());
@@ -64,8 +64,7 @@ public class CoreService {
 
 
     public String getTransactionId() {
-        return "CHA" + (chain.size() - 1) + "TRX" + (currentTransaction.size() - 1) + "RAND" + (new Random(1024));
-
+        return "CHA" + (chain.size() - 1) + "TRX" + (currentTransactions.size() - 1) + "RAND" + (new Random(1024));
     }
 
     public void addBlock(Block block) {
@@ -73,8 +72,8 @@ public class CoreService {
             LOG.debug(String.valueOf(block.getIndex()));
             doTransactions(block);
             addBlockToChain(block);
-//            this.getCurrentTransaction().clear();
-            this.currentTransaction.clear();
+            block.getTransactions().forEach(t-> this.chainIndex.put(t.getTransactionHash(),t));
+            block.getTransactions().forEach(t-> this.currentTransactions.remove(t.getTransactionHash()));
             LOG.info("Block has been added to chain");
         } else
             LOG.info("Block Is invalid");
@@ -92,7 +91,6 @@ public class CoreService {
             }
         }
     }
-
 
     public boolean validTransaction(@NotNull Transaction transaction) {
         if(transaction.getTransactionId().startsWith("REWARD"))
@@ -139,20 +137,14 @@ public class CoreService {
     }
 
     public Transaction findTransactionByTransactionHash(String hash) {
-        List<Block> blocks = this.getChain();
-        for (int i = blocks.size() - 1; i >= 1; i--)
-            for (int j = blocks.get(i).getTransactions().size() - 1; j >= 1; j--)
-                if (blocks.get(i).getTransactions().get(j).getTransactionHash().equals(hash))
-                    return blocks.get(i).getTransactions().get(j);
-
-        return new Transaction();
+        return chainIndex.get(hash);
     }
 
 
     public List<Transaction> findUTXOs(String signature) {
         List<Transaction> UTXOsList = new ArrayList<>();
 
-        List<Block> blockChain = this.getChain();
+        List<Block> blockChain = this.chain;
         for (int i = blockChain.size() - 1; i >= 1; i--) {
             LOG.debug(" i = " + i);
 //            LOG.debug(blockChain.get(i).getTransactions().size());
@@ -243,6 +235,8 @@ public class CoreService {
         }
         if (newChain != null) {
             this.chain = newChain;
+            chainIndex.clear();
+            this.chain.stream().flatMap(b->b.getTransactions().stream()).forEach(t->chainIndex.put(t.getTransactionHash(),t));
             LOG.info("Chain  has been replaced");
             return this.chain;
         }
@@ -277,7 +271,7 @@ public class CoreService {
         ArrayList<Block> blockList = null;
         try {
             if (response != null) {
-                blockList = new ObjectMapper().readValue(response.body(), ArrayList.class);
+                blockList = objectMapper.readValue(response.body(), ArrayList.class);
             }
         } catch (NullPointerException | JsonProcessingException e) {
             LOG.error(e.getLocalizedMessage());
@@ -320,10 +314,6 @@ public class CoreService {
             this.difficultyLevel += ++conditionChar;
     }
 
-    public String getDifficultyLevel() {
-        return difficultyLevel;
-    }
-
     public char getConditionChar() {
         return conditionChar;
     }
@@ -332,26 +322,13 @@ public class CoreService {
         this.conditionChar = conditionChar;
     }
 
-    public double getReward() {
-        return reward;
-    }
-
     public void setReward() {
         if (chain.size() > CHANGE_REWARD_AMOUNT_PER)
             this.reward = this.reward / 2;
     }
 
-    public List<Block> getChain() {
-        return chain;
-    }
-
     public void addBlockToChain(Block block) {
         chain.add(block);
-    }
-
-
-    public List<Transaction> getCurrentTransaction() {
-        return currentTransaction;
     }
 
     public List<Wallet> getWalletList() {
@@ -359,7 +336,7 @@ public class CoreService {
     }
 
     public void addTransaction(Transaction transaction) {
-        currentTransaction.add(transaction);
+        currentTransactions.put(transaction.getTransactionHash(),transaction);
     }
 
 
@@ -367,12 +344,8 @@ public class CoreService {
         this.walletList.add(wallet);
     }
 
-    public boolean isCurrentTransactionEmpty() {
-        return this.currentTransaction.isEmpty();
-    }
-
     public void clean() {
-        currentTransaction.clear();
+        currentTransactions.clear();
     }
 
     public List<String> getNodes() {
@@ -381,5 +354,22 @@ public class CoreService {
 
     public void addNode(String node) {
         this.nodes.add(node);
+    }
+
+    public Block getBlock() {
+        if (this.currentTransactions.isEmpty())
+            return null;
+        Block block = new Block();
+        block.setDate(new java.util.Date().toString());
+        block.setIndex(this.chain.size());
+        block.setPreviousHash(this.chain.get(this.chain.size() - 1).getPreviousHash());
+        block.setTransactions(this.currentTransactions.values());
+        block.setDifficultyLevel(this.difficultyLevel);
+        block.setReward(this.reward);
+        return block;
+    }
+
+    public List<Block> getChain() {
+        return chain;
     }
 }

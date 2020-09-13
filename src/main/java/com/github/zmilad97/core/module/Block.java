@@ -2,6 +2,7 @@ package com.github.zmilad97.core.module;
 
 import com.github.zmilad97.core.module.transaction.Transaction;
 
+import java.util.Collection;
 import java.util.List;
 
 public class Block {
@@ -93,8 +94,9 @@ public class Block {
         this.transactions.add(transaction);
     }
 
-    public void setTransactions(List<Transaction> transactions) {
-        this.transactions = transactions;
+    public void setTransactions(Collection<Transaction> transactions) {
+        this.transactions.clear();
+        this.transactions.addAll(transactions);
     }
 
     @Override
