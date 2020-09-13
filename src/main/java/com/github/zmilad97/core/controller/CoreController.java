@@ -41,7 +41,7 @@ public class CoreController {
     @PostMapping("/transaction/new")
     public void newTransaction(@RequestBody Transaction transaction) {
         transaction.setTransactionId(coreService.getTransactionId());
-        coreService.getCurrentTransaction().add(transaction);
+        coreService.addTransaction(transaction);
     }
 
 /*
@@ -60,18 +60,9 @@ public class CoreController {
     @GetMapping("/block")
     public ResponseEntity<Block> sendBlock() {
         LOG.debug("sending Block");
-
-        if (coreService.isCurrentTransactionEmpty())
+        Block block = coreService.getBlock();
+        if(block == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-
-        Block block = new Block();
-        block.setDate(new java.util.Date().toString());
-        block.setIndex(coreService.getChain().size());
-        block.setPreviousHash(coreService.getChain().get(coreService.getChain().size() - 1).getPreviousHash());
-        block.setTransactions(coreService.getCurrentTransaction());
-        block.setDifficultyLevel(coreService.getDifficultyLevel());
-        block.setReward(coreService.getReward());
-
         return ResponseEntity.ok(block);
     }
 
@@ -115,7 +106,7 @@ public class CoreController {
         transactionList.add(transaction);
         LOG.debug(String.valueOf(transaction));
         Block block = new Block(10, String.valueOf(new java.util.Date()), transactionList);
-        coreService.getChain().add(block);
+        coreService.addBlock(block);
     }
 
     @GetMapping("/test/transaction")
