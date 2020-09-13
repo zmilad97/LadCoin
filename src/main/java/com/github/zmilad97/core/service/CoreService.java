@@ -21,6 +21,8 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Service
 public class CoreService {
@@ -28,14 +30,16 @@ public class CoreService {
     private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
     private static final int CHANGE_REWARD_AMOUNT_PER = 5;
     private final ObjectMapper objectMapper;
-    private final Map<String,Transaction> currentTransactions;
+    private final Map<String, Transaction> currentTransactions;
     private final Map<String, Transaction> chainIndex = new HashMap<>();
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
     private double reward = 50;
-    Cryptography cryptography;
     private List<Block> chain;
+    private ReadWriteLock readWriteLock;
     private List<String> nodes;
+    private MessageDigest messageDigest;
+    Cryptography cryptography;
 
     public CoreService() {
         this.objectMapper = new ObjectMapper();
@@ -43,37 +47,54 @@ public class CoreService {
         currentTransactions = new HashMap<>();
         chain = new ArrayList<>();
         chain.add(generateGenesis());
+        nodes = new ArrayList<>();
+        readWriteLock = new ReentrantReadWriteLock();
 
-//        Transaction transaction = new Transaction("test 1" , " test 2", 50);
-//        currentTransaction.add(transaction);
 
     }
 
-
     @NotNull
     private Block generateGenesis() {
-        Block genesis = new Block(0, new java.util.Date().toString(), new ArrayList<>());
-        genesis.setPreviousHash(null);
-        String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
-        genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
-        return genesis;
+        readWriteLock.writeLock().lock();
+        readWriteLock.readLock().lock();
+        try {
+
+            Block genesis = new Block(0, new java.util.Date().toString(), new ArrayList<>());
+            genesis.setPreviousHash(null);
+            String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
+            genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
+            return genesis;
+        } finally {
+            readWriteLock.writeLock().unlock();
+            readWriteLock.readLock().unlock();
+        }
     }
 
 
     public String getTransactionId() {
-        return "CHA" + (chain.size() - 1) + "TRX" + (currentTransactions.size() - 1) + "RAND" + (new Random(1024));
+        readWriteLock.writeLock().lock();
+        try {
+            return "CHA" + (chain.size() - 1) + "TRX" + (currentTransactions.size() - 1) + "RAND" + (new Random(1024));
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
     }
 
     public void addBlock(Block block) {
-        if (validMine(block)) {
-            LOG.debug(String.valueOf(block.getIndex()));
-            doTransactions(block);
-            addBlockToChain(block);
-            block.getTransactions().forEach(t-> this.chainIndex.put(t.getTransactionHash(),t));
-            block.getTransactions().forEach(t-> this.currentTransactions.remove(t.getTransactionHash()));
-            LOG.info("Block has been added to chain");
-        } else
-            LOG.info("Block Is invalid");
+        readWriteLock.readLock().lock();
+        try {
+            if (validMine(block)) {
+                LOG.debug(String.valueOf(block.getIndex()));
+                doTransactions(block);
+                addBlockToChain(block);
+                block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
+                block.getTransactions().forEach(t -> this.currentTransactions.remove(t.getTransactionHash()));
+                LOG.info("Block has been added to chain");
+            } else
+                LOG.info("Block Is invalid");
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
     }
 
     //removing unValid Transaction
@@ -90,7 +111,7 @@ public class CoreService {
     }
 
     public boolean validTransaction(@NotNull Transaction transaction) {
-        if(transaction.getTransactionId().startsWith("REWARD"))
+        if (transaction.getTransactionId().startsWith("REWARD"))
             return true;
         LOG.debug(transaction.getTransactionInput().getPubKey());
         if (transaction.getTransactionInput().getPubKey().equals("null"))
@@ -138,9 +159,9 @@ public class CoreService {
     }
 
 
+    //TODO :  find better way
     public List<Transaction> findUTXOs(String signature) {
         List<Transaction> UTXOsList = new ArrayList<>();
-
         List<Block> blockChain = this.chain;
         for (int i = blockChain.size() - 1; i >= 1; i--) {
             LOG.debug(" i = " + i);
@@ -212,32 +233,39 @@ public class CoreService {
     }
 
     public List<Block> resolveConflict() {
-        List<String> nodeList = this.nodes;
-        List<Block> newChain = null;
-        List<Block> chain;
-        List<Block> blockList;
-        int maxSize = this.chain.size();
-        int size;
+        readWriteLock.readLock().lock();
+        readWriteLock.writeLock().lock();
+        try {
+            List<String> nodeList = this.nodes;
+            List<Block> newChain = null;
+            List<Block> chain;
+            List<Block> blockList;
+            int maxSize = this.chain.size();
+            int size;
 
-        for (String node : nodeList) {
-            blockList = findChain(node);
-            if (blockList != null) {
-                size = blockList.size();
-                chain = blockList;
-                if (size > maxSize && validChain(chain)) {
-                    maxSize = size;
-                    newChain = chain;
+            for (String node : nodeList) {
+                blockList = findChain(node);
+                if (blockList != null) {
+                    size = blockList.size();
+                    chain = blockList;
+                    if (size > maxSize && validChain(chain)) {
+                        maxSize = size;
+                        newChain = chain;
+                    }
                 }
             }
+            if (newChain != null) {
+                this.chain = newChain;
+                chainIndex.clear();
+                this.chain.stream().flatMap(b -> b.getTransactions().stream()).forEach(t -> chainIndex.put(t.getTransactionHash(), t));
+                LOG.info("Chain  has been replaced");
+                return this.chain;
+            }
+            return null;
+        } finally {
+            readWriteLock.writeLock().unlock();
+            readWriteLock.readLock().unlock();
         }
-        if (newChain != null) {
-            this.chain = newChain;
-            chainIndex.clear();
-            this.chain.stream().flatMap(b->b.getTransactions().stream()).forEach(t->chainIndex.put(t.getTransactionHash(),t));
-            LOG.info("Chain  has been replaced");
-            return this.chain;
-        }
-        return null;
     }
 
     public List<Block> findChain(String node) {
@@ -330,9 +358,8 @@ public class CoreService {
 
 
     public void addTransaction(Transaction transaction) {
-        currentTransactions.put(transaction.getTransactionHash(),transaction);
+        currentTransactions.put(transaction.getTransactionHash(), transaction);
     }
-
 
 
     public void clean() {
