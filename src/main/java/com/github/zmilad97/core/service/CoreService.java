@@ -32,13 +32,13 @@ public class CoreService {
     private final ObjectMapper objectMapper;
     private final Map<String, Transaction> currentTransactions;
     private final Map<String, Transaction> chainIndex = new HashMap<>();
+    private final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
     private double reward = 50;
     private List<Block> chain;
     private ReadWriteLock readWriteLock;
     private List<String> nodes;
-    private MessageDigest messageDigest;
     Cryptography cryptography;
 
     public CoreService() {
@@ -88,6 +88,8 @@ public class CoreService {
                 doTransactions(block);
                 addBlockToChain(block);
                 block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
+                //TODO :fix this for null signature index
+                block.getTransactions().forEach(t ->this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t));
                 block.getTransactions().forEach(t -> this.currentTransactions.remove(t.getTransactionHash()));
                 LOG.info("Block has been added to chain");
             } else
@@ -156,6 +158,12 @@ public class CoreService {
 
     public Transaction findTransactionByTransactionHash(String hash) {
         return chainIndex.get(hash);
+    }
+
+
+    public List<Transaction> findUtx(String signature){
+
+        return null;
     }
 
 
