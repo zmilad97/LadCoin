@@ -88,7 +88,7 @@ public class CoreService {
                 doTransactions(block);
                 addBlockToChain(block);
                 block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
-                block.getTransactions().forEach(t ->{ if (signatureIndex.get(t.getTransactionOutput().getSignature()) == null)
+                block.getTransactions().forEach(t ->{ if (signatureIndex.get(t.getTransactionOutput().getSignature()) != null)
                     this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
                 else {
                     this.signatureIndex.put(t.getTransactionOutput().getSignature(), new ArrayList<>());
