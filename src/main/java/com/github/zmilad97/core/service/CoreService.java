@@ -88,8 +88,12 @@ public class CoreService {
                 doTransactions(block);
                 addBlockToChain(block);
                 block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
-                //TODO :fix this for null signature index
-                block.getTransactions().forEach(t ->this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t));
+                block.getTransactions().forEach(t ->{ if (signatureIndex.get(t.getTransactionOutput().getSignature()) == null)
+                    this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
+                else {
+                    this.signatureIndex.put(t.getTransactionOutput().getSignature(), new ArrayList<>());
+                    this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
+                }});
                 block.getTransactions().forEach(t -> this.currentTransactions.remove(t.getTransactionHash()));
                 LOG.info("Block has been added to chain");
             } else
