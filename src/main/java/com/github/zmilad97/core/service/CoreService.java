@@ -45,10 +45,10 @@ public class CoreService {
         this.objectMapper = new ObjectMapper();
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
+        readWriteLock = new ReentrantReadWriteLock();
         chain = new ArrayList<>();
         chain.add(generateGenesis());
         nodes = new ArrayList<>();
-        readWriteLock = new ReentrantReadWriteLock();
 
 
     }
