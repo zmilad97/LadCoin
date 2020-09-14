@@ -161,42 +161,45 @@ public class CoreService {
     }
 
 
-    public List<Transaction> findUtx(String signature){
+    public List<Transaction> findUTXOs(String signature){
+        List<Transaction> unspentTransaction = this.signatureIndex.get(signature);
+        unspentTransaction.forEach(t -> {if(!(transactionIsUnspent(t,unspentTransaction)))
+            unspentTransaction.remove(t); });
 
-        return null;
+       return unspentTransaction;
     }
 
 
     //TODO :  find better way
-    public List<Transaction> findUTXOs(String signature) {
-        List<Transaction> UTXOsList = new ArrayList<>();
-        List<Block> blockChain = this.chain;
-        for (int i = blockChain.size() - 1; i >= 1; i--) {
-            LOG.debug(" i = " + i);
-//            LOG.debug(blockChain.get(i).getTransactions().size());
-            for (int j = blockChain.get(i).getTransactions().size() - 1; j >= 0; j--) {
-                LOG.debug(" J = " + j);
-                if (blockChain.get(i).getTransactions().get(j).getTransactionOutput().getSignature().equals(signature)) {
-                    LOG.debug("Found");
-                    if (UTXOsList.isEmpty()) {
-                        LOG.debug("empty");
-                        LOG.debug(blockChain.get(i).getTransactions().get(j).getTransactionId());
-                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
-                    } else if (transactionIsUnspent(blockChain.get(i).getTransactions().get(j), UTXOsList)) {
-                        LOG.debug("UTXOs" + UTXOsList.size());
-                        LOG.debug("NOT EMPTY");
-                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
-                    }
-                }
-            }
-        }
-        Transaction nullTransaction = new Transaction();
-        nullTransaction.setTransactionId("404");
-        nullTransaction.setTransactionOutput(new TransactionOutput(0, "404"));
-        if (UTXOsList.isEmpty())
-            UTXOsList.add(nullTransaction);
-        return UTXOsList;
-    }
+//    public List<Transaction> findUTXOs(String signature) {
+//        List<Transaction> UTXOsList = new ArrayList<>();
+//        List<Block> blockChain = this.chain;
+//        for (int i = blockChain.size() - 1; i >= 1; i--) {
+//            LOG.debug(" i = " + i);
+////            LOG.debug(blockChain.get(i).getTransactions().size());
+//            for (int j = blockChain.get(i).getTransactions().size() - 1; j >= 0; j--) {
+//                LOG.debug(" J = " + j);
+//                if (blockChain.get(i).getTransactions().get(j).getTransactionOutput().getSignature().equals(signature)) {
+//                    LOG.debug("Found");
+//                    if (UTXOsList.isEmpty()) {
+//                        LOG.debug("empty");
+//                        LOG.debug(blockChain.get(i).getTransactions().get(j).getTransactionId());
+//                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
+//                    } else if (transactionIsUnspent(blockChain.get(i).getTransactions().get(j), UTXOsList)) {
+//                        LOG.debug("UTXOs" + UTXOsList.size());
+//                        LOG.debug("NOT EMPTY");
+//                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
+//                    }
+//                }
+//            }
+//        }
+//        Transaction nullTransaction = new Transaction();
+//        nullTransaction.setTransactionId("404");
+//        nullTransaction.setTransactionOutput(new TransactionOutput(0, "404"));
+//        if (UTXOsList.isEmpty())
+//            UTXOsList.add(nullTransaction);
+//        return UTXOsList;
+//    }
 
     //Check the UTXOs unspent or not
     private boolean transactionIsUnspent(Transaction transaction, List<Transaction> UTXOsList) {
