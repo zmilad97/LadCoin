@@ -29,7 +29,6 @@ public class CoreService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
     private static final int CHANGE_REWARD_AMOUNT_PER = 5;
-    private final ObjectMapper objectMapper;
     private final Map<String, Transaction> currentTransactions;
     private final Map<String, Transaction> chainIndex = new HashMap<>();
     private final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
@@ -42,7 +41,6 @@ public class CoreService {
     Cryptography cryptography;
 
     public CoreService() {
-        this.objectMapper = new ObjectMapper();
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
         readWriteLock = new ReentrantReadWriteLock();
@@ -284,6 +282,7 @@ public class CoreService {
     }
 
     public List<Block> findChain(String node) {
+        ObjectMapper  objectMapper =  new ObjectMapper();
 
         final HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_2)
