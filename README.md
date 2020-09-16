@@ -1,9 +1,18 @@
 # LadCoin
-this is the Core api of LadCoin
+this is the Core api of LadCoin .
 
 # About LadCoin
 
-LadCoin is a java restful blockchain api 
+LadCoin is a java restful blockchain api .
+this repo is the core api . Below links are wallet and miner program for LadCoin
+
+https://github.com/zmilad97/LadCoin-Wallet
+
+https://github.com/zmilad97/LadCoin-Miner
+
+## Running LadCoin via Docker
+
+
 
 ## Running LadCoin localy
 
