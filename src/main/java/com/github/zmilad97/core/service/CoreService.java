@@ -5,13 +5,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
-import com.github.zmilad97.core.module.transaction.TransactionOutput;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -28,63 +29,64 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class CoreService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
-    private static final int CHANGE_REWARD_AMOUNT_PER = 5;
+    private static final int CHANGE_REWARD_AMOUNT_PER = 50;
     private final Map<String, Transaction> currentTransactions;
     private final Map<String, Transaction> chainIndex = new HashMap<>();
     private final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
+    private List<Block> chain = new ArrayList<>();
+    private final Cryptography cryptography;
     private String difficultyLevel = "ab";
     private char conditionChar = 98;
     private double reward = 50;
-    private List<Block> chain;
     private ReadWriteLock readWriteLock;
+    @Value("${app.nodes.list}")
     private List<String> nodes;
-    Cryptography cryptography;
 
     public CoreService() {
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
         readWriteLock = new ReentrantReadWriteLock();
-        chain = new ArrayList<>();
+
         chain.add(generateGenesis());
         nodes = new ArrayList<>();
 
 
     }
 
+
     @NotNull
     private Block generateGenesis() {
         readWriteLock.writeLock().lock();
-        readWriteLock.readLock().lock();
         try {
-
             Block genesis = new Block(0, new java.util.Date().toString(), new ArrayList<>());
             genesis.setPreviousHash(null);
             String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
+            genesis.setReward(50.0);
+            genesis.setDifficultyLevel("ab");
             genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
             return genesis;
         } finally {
             readWriteLock.writeLock().unlock();
-            readWriteLock.readLock().unlock();
         }
     }
 
 
     public String getTransactionId() {
-        readWriteLock.writeLock().lock();
+        readWriteLock.readLock().lock();
         try {
             return "CHA" + (chain.size() - 1) + "TRX" + (currentTransactions.size() - 1) + "RAND" + (new Random(1024));
         } finally {
-            readWriteLock.writeLock().unlock();
+            readWriteLock.readLock().unlock();
         }
     }
 
     public void addBlock(Block block) {
-        readWriteLock.readLock().lock();
+        readWriteLock.writeLock().lock();
         try {
             if (validMine(block)) {
                 LOG.debug(String.valueOf(block.getIndex()));
                 doTransactions(block);
-                addBlockToChain(block);
+                chain.add(block);
                 block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
                 block.getTransactions().forEach(t ->{ if (signatureIndex.get(t.getTransactionOutput().getSignature()) != null)
                     this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
@@ -97,7 +99,7 @@ public class CoreService {
             } else
                 LOG.info("Block Is invalid");
         } finally {
-            readWriteLock.readLock().unlock();
+            readWriteLock.writeLock().unlock();
         }
     }
 
@@ -165,43 +167,12 @@ public class CoreService {
 
     public List<Transaction> findUTXOs(String signature){
         List<Transaction> unspentTransaction = this.signatureIndex.get(signature);
-        unspentTransaction.forEach(t -> {if(!(transactionIsUnspent(t,unspentTransaction)))
-            unspentTransaction.remove(t); });
+        unspentTransaction.stream()
+                .filter(t->!transactionIsUnspent(t,unspentTransaction))
+                .forEach(unspentTransaction::remove);
 
        return unspentTransaction;
     }
-
-
-    //TODO :  find better way
-//    public List<Transaction> findUTXOs(String signature) {
-//        List<Transaction> UTXOsList = new ArrayList<>();
-//        List<Block> blockChain = this.chain;
-//        for (int i = blockChain.size() - 1; i >= 1; i--) {
-//            LOG.debug(" i = " + i);
-////            LOG.debug(blockChain.get(i).getTransactions().size());
-//            for (int j = blockChain.get(i).getTransactions().size() - 1; j >= 0; j--) {
-//                LOG.debug(" J = " + j);
-//                if (blockChain.get(i).getTransactions().get(j).getTransactionOutput().getSignature().equals(signature)) {
-//                    LOG.debug("Found");
-//                    if (UTXOsList.isEmpty()) {
-//                        LOG.debug("empty");
-//                        LOG.debug(blockChain.get(i).getTransactions().get(j).getTransactionId());
-//                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
-//                    } else if (transactionIsUnspent(blockChain.get(i).getTransactions().get(j), UTXOsList)) {
-//                        LOG.debug("UTXOs" + UTXOsList.size());
-//                        LOG.debug("NOT EMPTY");
-//                        UTXOsList.add(blockChain.get(i).getTransactions().get(j));
-//                    }
-//                }
-//            }
-//        }
-//        Transaction nullTransaction = new Transaction();
-//        nullTransaction.setTransactionId("404");
-//        nullTransaction.setTransactionOutput(new TransactionOutput(0, "404"));
-//        if (UTXOsList.isEmpty())
-//            UTXOsList.add(nullTransaction);
-//        return UTXOsList;
-//    }
 
     //Check the UTXOs unspent or not
     private boolean transactionIsUnspent(Transaction transaction, List<Transaction> UTXOsList) {
@@ -246,7 +217,6 @@ public class CoreService {
     }
 
     public List<Block> resolveConflict() {
-        readWriteLock.readLock().lock();
         readWriteLock.writeLock().lock();
         try {
             List<String> nodeList = this.nodes;
@@ -275,9 +245,9 @@ public class CoreService {
                 return this.chain;
             }
             return null;
-        } finally {
+        }
+        finally {
             readWriteLock.writeLock().unlock();
-            readWriteLock.readLock().unlock();
         }
     }
 
@@ -303,8 +273,10 @@ public class CoreService {
             if (response.statusCode() == 404)
                 return null;
             LOG.debug(response.body());
+        } catch (ConnectException e) {
+            LOG.error("Node : "+node +" ->  "+ e.getLocalizedMessage());
         } catch (IOException | InterruptedException | NullPointerException e) {
-            e.printStackTrace();
+            LOG.error(e.getLocalizedMessage());
         }
 
         ArrayList<Block> blockList = null;
@@ -348,40 +320,21 @@ public class CoreService {
     }
 
 
-    private void setDifficultyLevel() {
-        if (chain.size() % 5 == 0)
-            this.difficultyLevel += ++conditionChar;
+    private String getDifficultyLevel() {
+            if (chain.size() % 5 == 0)
+                return chain.get(chain.size() - 1).getDifficultyLevel() + (++conditionChar);
+            return chain.get(chain.size()-1).getDifficultyLevel();
+
     }
 
-    public char getConditionChar() {
-        return conditionChar;
+    public double getReward() {
+            if (chain.size() % CHANGE_REWARD_AMOUNT_PER ==0)
+                return chain.get(chain.size()-1).getReward()/2;
+            return chain.get(chain.size()-1).getReward();
     }
-
-    public void setConditionChar(char conditionChar) {
-        this.conditionChar = conditionChar;
-    }
-
-    public void setReward() {
-        if (chain.size() > CHANGE_REWARD_AMOUNT_PER)
-            this.reward = this.reward / 2;
-    }
-
-    public void addBlockToChain(Block block) {
-        chain.add(block);
-    }
-
 
     public void addTransaction(Transaction transaction) {
         currentTransactions.put(transaction.getTransactionHash(), transaction);
-    }
-
-
-    public void clean() {
-        currentTransactions.clear();
-    }
-
-    public List<String> getNodes() {
-        return nodes;
     }
 
     public void addNode(String node) {
@@ -389,19 +342,24 @@ public class CoreService {
     }
 
     public Block getBlock() {
-        if (this.currentTransactions.isEmpty())
-            return null;
-        Block block = new Block();
-        block.setDate(new java.util.Date().toString());
-        block.setIndex(this.chain.size());
-        block.setPreviousHash(this.chain.get(this.chain.size() - 1).getPreviousHash());
-        block.setTransactions(this.currentTransactions.values());
-        block.setDifficultyLevel(this.difficultyLevel);
-        block.setReward(this.reward);
-        return block;
+        readWriteLock.readLock().lock();
+        try {
+            if (this.currentTransactions.isEmpty())
+                return null;
+            Block block = new Block();
+            block.setDate(new java.util.Date().toString());
+            block.setIndex(this.chain.size());
+            block.setPreviousHash(this.chain.get(this.chain.size() - 1).getPreviousHash());
+            block.setTransactions(this.currentTransactions.values());
+            block.setDifficultyLevel(getDifficultyLevel());
+            block.setReward(getReward());
+            return block;
+        }finally {
+            readWriteLock.readLock().unlock();
+        }
     }
 
     public List<Block> getChain() {
-        return chain;
+        return new ArrayList<>(chain);
     }
 }
