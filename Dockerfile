@@ -1,7 +1,7 @@
-FROM openjdk:16-jdk-alpine
+FROM openjdk:16-jdk-alpine 
 
 # add directly the jar
-COPY *.jar /app.jar
+COPY target/*.jar /app.jar
 
 EXPOSE 8181
 

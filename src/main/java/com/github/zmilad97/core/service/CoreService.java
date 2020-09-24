@@ -1,3 +1,6 @@
+
+
+
 package com.github.zmilad97.core.service;
 
 
@@ -35,9 +38,7 @@ public class CoreService {
     private final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
     private List<Block> chain = new ArrayList<>();
     private final Cryptography cryptography;
-    private String difficultyLevel = "ab";
     private char conditionChar = 98;
-    private double reward = 50;
     private ReadWriteLock readWriteLock;
     @Value("${app.nodes.list}")
     private List<String> nodes;
@@ -46,11 +47,8 @@ public class CoreService {
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
         readWriteLock = new ReentrantReadWriteLock();
-
         chain.add(generateGenesis());
         nodes = new ArrayList<>();
-
-
     }
 
 
@@ -70,7 +68,6 @@ public class CoreService {
         }
     }
 
-
     public String getTransactionId() {
         readWriteLock.readLock().lock();
         try {
@@ -88,12 +85,14 @@ public class CoreService {
                 doTransactions(block);
                 chain.add(block);
                 block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
-                block.getTransactions().forEach(t ->{ if (signatureIndex.get(t.getTransactionOutput().getSignature()) != null)
-                    this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
-                else {
-                    this.signatureIndex.put(t.getTransactionOutput().getSignature(), new ArrayList<>());
-                    this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
-                }});
+                block.getTransactions().forEach(t -> {
+                    if (signatureIndex.get(t.getTransactionOutput().getSignature()) != null)
+                        this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
+                    else {
+                        this.signatureIndex.put(t.getTransactionOutput().getSignature(), new ArrayList<>());
+                        this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
+                    }
+                });
                 block.getTransactions().forEach(t -> this.currentTransactions.remove(t.getTransactionHash()));
                 LOG.info("Block has been added to chain");
             } else
@@ -165,13 +164,13 @@ public class CoreService {
     }
 
 
-    public List<Transaction> findUTXOs(String signature){
+    public List<Transaction> findUTXOs(String signature) {
         List<Transaction> unspentTransaction = this.signatureIndex.get(signature);
         unspentTransaction.stream()
-                .filter(t->!transactionIsUnspent(t,unspentTransaction))
+                .filter(t -> !transactionIsUnspent(t, unspentTransaction))
                 .forEach(unspentTransaction::remove);
 
-       return unspentTransaction;
+        return unspentTransaction;
     }
 
     //Check the UTXOs unspent or not
@@ -245,14 +244,13 @@ public class CoreService {
                 return this.chain;
             }
             return null;
-        }
-        finally {
+        } finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
     public List<Block> findChain(String node) {
-        ObjectMapper  objectMapper =  new ObjectMapper();
+        ObjectMapper objectMapper = new ObjectMapper();
 
         final HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_2)
@@ -274,7 +272,7 @@ public class CoreService {
                 return null;
             LOG.debug(response.body());
         } catch (ConnectException e) {
-            LOG.error("Node : "+node +" ->  "+ e.getLocalizedMessage());
+            LOG.error("Node : " + node + " ->  " + e.getLocalizedMessage());
         } catch (IOException | InterruptedException | NullPointerException e) {
             LOG.error(e.getLocalizedMessage());
         }
@@ -321,16 +319,16 @@ public class CoreService {
 
 
     private String getDifficultyLevel() {
-            if (chain.size() % 5 == 0)
-                return chain.get(chain.size() - 1).getDifficultyLevel() + (++conditionChar);
-            return chain.get(chain.size()-1).getDifficultyLevel();
+        if (chain.size() % 5 == 0)
+            return chain.get(chain.size() - 1).getDifficultyLevel() + (++conditionChar);
+        return chain.get(chain.size() - 1).getDifficultyLevel();
 
     }
 
     public double getReward() {
-            if (chain.size() % CHANGE_REWARD_AMOUNT_PER ==0)
-                return chain.get(chain.size()-1).getReward()/2;
-            return chain.get(chain.size()-1).getReward();
+        if (chain.size() % CHANGE_REWARD_AMOUNT_PER == 0)
+            return chain.get(chain.size() - 1).getReward() / 2;
+        return chain.get(chain.size() - 1).getReward();
     }
 
     public void addTransaction(Transaction transaction) {
@@ -354,10 +352,11 @@ public class CoreService {
             block.setDifficultyLevel(getDifficultyLevel());
             block.setReward(getReward());
             return block;
-        }finally {
+        } finally {
             readWriteLock.readLock().unlock();
         }
     }
+
 
     public List<Block> getChain() {
         return new ArrayList<>(chain);
