@@ -2,6 +2,7 @@ package com.github.zmilad97.core.module;
 
 import com.github.zmilad97.core.module.transaction.Transaction;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -12,7 +13,7 @@ public class Block {
     private String hash;
     private String previousHash;
     private long nonce;
-    private List<Transaction> transactions;
+    private List<Transaction> transactions = new ArrayList<>();
     private String difficultyLevel;
     private Double reward;
 
