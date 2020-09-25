@@ -1,7 +1,7 @@
 FROM openjdk:16
 
-
-RUN apt-get update && apt-get install -y maven
+RUN uname -srm
+RUN apt update && apt install -y maven
 COPY . /project
 RUN  cd /project && mvn package
 
