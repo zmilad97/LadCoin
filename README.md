@@ -33,7 +33,6 @@ Or you can run it from Maven directly using the Spring Boot Maven plugin. If you
 ## using LadCoin
 LadCoin is currently running on below nodes you can use your wallet or miner program to use it
 
-https://ladcoin-test-zmilad97.fandogh.cloud
 
 ----------------------------------------------------------------------------------------------------------------
 
