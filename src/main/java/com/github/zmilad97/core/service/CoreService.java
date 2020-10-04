@@ -361,4 +361,8 @@ public class CoreService {
     public List<Block> getChain() {
         return new ArrayList<>(chain);
     }
+
+    public void clean(){
+        chain.clear();
+    }
 }

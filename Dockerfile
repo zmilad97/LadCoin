@@ -1,11 +1,6 @@
-FROM openjdk:16-jdk-alpine 
-
-# add directly the jar
-COPY target/*.jar /app.jar
-
-EXPOSE 8181
-
-CMD echo "The core will start..." && \
-    java -Djava.io.tmpdir=/var/tmp \
-         -Djava.security.egd=file:/dev/./urandom \
-         -jar /app.jar
+FROM openjdk:16-jdk-alpine
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} app.jar
+ENTRYPOINT ["java","-jar","/app.jar"]
