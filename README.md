@@ -1,5 +1,5 @@
 # LadCoin
-this is the Core api of LadCoin .
+LadCoin is a restful blockchain API using java and spring boot , inspired from bitcoin
 
 # About LadCoin
 
