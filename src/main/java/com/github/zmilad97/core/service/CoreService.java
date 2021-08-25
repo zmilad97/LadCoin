@@ -4,10 +4,13 @@
 package com.github.zmilad97.core.service;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.zmilad97.core.exceptions.NodeNotFoundException;
 import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,11 +18,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.net.ConnectException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
@@ -39,9 +37,9 @@ public class CoreService {
     private List<Block> chain = new ArrayList<>();
     private final Cryptography cryptography;
     private char conditionChar = 98;
-    private ReadWriteLock readWriteLock;
+    private final ReadWriteLock readWriteLock;
     @Value("${app.nodes.list}")
-    private List<String> nodes;
+    private final List<String> nodes;
 
     public CoreService() {
         cryptography = new Cryptography();
@@ -60,7 +58,7 @@ public class CoreService {
             genesis.setPreviousHash(null);
             String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
             genesis.setReward(50.0);
-            genesis.setDifficultyLevel("ab");
+            genesis.setDifficultyLevel("ab"); // TODO: Make it more challenging
             genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
             return genesis;
         } finally {
@@ -86,12 +84,10 @@ public class CoreService {
                 chain.add(block);
                 block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
                 block.getTransactions().forEach(t -> {
-                    if (signatureIndex.get(t.getTransactionOutput().getSignature()) != null)
-                        this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
-                    else {
+                    if (signatureIndex.get(t.getTransactionOutput().getSignature()) == null) {
                         this.signatureIndex.put(t.getTransactionOutput().getSignature(), new ArrayList<>());
-                        this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
                     }
+                    this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
                 });
                 block.getTransactions().forEach(t -> this.currentTransactions.remove(t.getTransactionHash()));
                 LOG.info("Block has been added to chain");
@@ -215,25 +211,29 @@ public class CoreService {
         return true;
     }
 
-    public List<Block> resolveConflict() {
+    public void resolveConflict() {
         readWriteLock.writeLock().lock();
         try {
-            List<String> nodeList = this.nodes;
             List<Block> newChain = null;
             List<Block> chain;
             List<Block> blockList;
             int maxSize = this.chain.size();
             int size;
 
-            for (String node : nodeList) {
-                blockList = findChain(node);
-                if (blockList != null) {
-                    size = blockList.size();
-                    chain = blockList;
-                    if (size > maxSize && validChain(chain)) {
-                        maxSize = size;
-                        newChain = chain;
+            for (String node : this.nodes) {
+                try {
+                    blockList = findChain(node);
+
+                    if (blockList != null) {
+                        size = blockList.size();
+                        chain = blockList;
+                        if (size > maxSize && validChain(chain)) {
+                            maxSize = size;
+                            newChain = chain;
+                        }
                     }
+                } catch (NodeNotFoundException | IOException e) {
+                    LOG.error(e.getLocalizedMessage());
                 }
             }
             if (newChain != null) {
@@ -241,52 +241,23 @@ public class CoreService {
                 chainIndex.clear();
                 this.chain.stream().flatMap(b -> b.getTransactions().stream()).forEach(t -> chainIndex.put(t.getTransactionHash(), t));
                 LOG.info("Chain  has been replaced");
-                return this.chain;
             }
-            return null;
         } finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
-    public List<Block> findChain(String node) {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        final HttpClient httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .build();
+    public List<Block> findChain(String node) throws IOException, NodeNotFoundException {
+        final OkHttpClient okHttpClient = new OkHttpClient();
+        final ObjectMapper objectMapper = new ObjectMapper();
         String address = "http://" + node + "/chain";
+        Request request = new Request.Builder().header("User-Agent", "Miner").url(address).build();
+        Response response = okHttpClient.newCall(request).execute();
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .GET()
-                .uri(URI.create(address))
-                .setHeader("User-Agent", "Miner")
-                .build();
+        if (response.code() == 404)
+            throw new NodeNotFoundException();
 
-        HttpResponse<String> response = null;
-        try {
-
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 404)
-                return null;
-            LOG.debug(response.body());
-        } catch (ConnectException e) {
-            LOG.error("Node : " + node + " ->  " + e.getLocalizedMessage());
-        } catch (IOException | InterruptedException | NullPointerException e) {
-            LOG.error(e.getLocalizedMessage());
-        }
-
-        ArrayList<Block> blockList = null;
-        try {
-            if (response != null) {
-                blockList = objectMapper.readValue(response.body(), ArrayList.class);
-            }
-        } catch (NullPointerException | JsonProcessingException e) {
-            LOG.error(e.getLocalizedMessage());
-        }
-
-        return blockList;
+        return Arrays.asList(objectMapper.readValue(Objects.requireNonNull(response.body()).toString(), Block[].class));
     }
 
 
@@ -362,7 +333,4 @@ public class CoreService {
         return new ArrayList<>(chain);
     }
 
-    public void clean(){
-        chain.clear();
-    }
 }

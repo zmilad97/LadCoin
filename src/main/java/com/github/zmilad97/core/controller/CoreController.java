@@ -75,10 +75,10 @@ public class CoreController {
         coreService.addNode(url.getAuthority());
     }
 
-    @GetMapping("/resolve")
-    public List<Block> resolve() {
-        return coreService.resolveConflict();
-    }
+//    @GetMapping("/resolve")
+//    public List<Block> resolve() {
+//        return coreService.resolveConflict();
+//    }
 
     @GetMapping("/test/block")
     public void addTestBlock() {
