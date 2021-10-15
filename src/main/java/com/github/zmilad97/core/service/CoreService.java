@@ -5,7 +5,6 @@ package com.github.zmilad97.core.service;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.zmilad97.core.exceptions.NodeNotFoundException;
 import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
 import okhttp3.OkHttpClient;
@@ -34,19 +33,29 @@ public class CoreService {
     private final Map<String, Transaction> currentTransactions;
     private final Map<String, Transaction> chainIndex = new HashMap<>();
     private final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
+    private final OkHttpClient okHttpClient;
+    private final ObjectMapper objectMapper;
+
     private List<Block> chain = new ArrayList<>();
     private final Cryptography cryptography;
-    private char conditionChar = 98;
     private final ReadWriteLock readWriteLock;
+    @Value("${app.currentNodeAddress}")
+    private final String currentNodeAddress;
     @Value("${app.nodes.list}")
-    private final List<String> nodes;
+    private final Set<String> hardNodes;
+    private final Set<String> softNodes;
 
     public CoreService() {
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
         readWriteLock = new ReentrantReadWriteLock();
         chain.add(generateGenesis());
-        nodes = new ArrayList<>();
+        hardNodes = new HashSet<>();
+        softNodes = new HashSet<>();
+        currentNodeAddress = "";
+        LOG.info("Current Node Address = " + currentNodeAddress);
+        okHttpClient = new OkHttpClient();
+        objectMapper = new ObjectMapper();
     }
 
 
@@ -58,7 +67,7 @@ public class CoreService {
             genesis.setPreviousHash(null);
             String stringToHash = "" + genesis.getIndex() + genesis.getDate() + genesis.getPreviousHash() + genesis.getTransactions();
             genesis.setReward(50.0);
-            genesis.setDifficultyLevel("ab"); // TODO: Make it more challenging
+            genesis.setDifficultyLevel("000");
             genesis.setHash(cryptography.toHexString(cryptography.getSha(stringToHash)));
             return genesis;
         } finally {
@@ -214,16 +223,19 @@ public class CoreService {
     public void resolveConflict() {
         readWriteLock.writeLock().lock();
         try {
+
             List<Block> newChain = null;
             List<Block> chain;
             List<Block> blockList;
+
+            Set<String> softNodes;
             int maxSize = this.chain.size();
             int size;
 
-            for (String node : this.nodes) {
+            for (String node : this.hardNodes) {
                 try {
                     blockList = findChain(node);
-
+                    softNodes = findSoftNodes(node);
                     if (blockList != null) {
                         size = blockList.size();
                         chain = blockList;
@@ -232,34 +244,52 @@ public class CoreService {
                             newChain = chain;
                         }
                     }
-                } catch (NodeNotFoundException | IOException e) {
-                    LOG.error(e.getLocalizedMessage());
+                    if (softNodes != null) {
+                        this.softNodes.addAll(softNodes);
+                    }
+
+                } catch (IOException e) {
+                    LOG.error(e.getMessage());
                 }
             }
             if (newChain != null) {
                 this.chain = newChain;
                 chainIndex.clear();
                 this.chain.stream().flatMap(b -> b.getTransactions().stream()).forEach(t -> chainIndex.put(t.getTransactionHash(), t));
-                LOG.info("Chain  has been replaced");
+                LOG.info("Chain has been replaced");
             }
+
+
         } finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
-    public List<Block> findChain(String node) throws IOException, NodeNotFoundException {
-        final OkHttpClient okHttpClient = new OkHttpClient();
-        final ObjectMapper objectMapper = new ObjectMapper();
-        String address = "http://" + node + "/chain";
-        Request request = new Request.Builder().header("User-Agent", "Miner").url(address).build();
-        Response response = okHttpClient.newCall(request).execute();
+    public List<Block> findChain(String node) throws IOException {
+        String address = node + "/chain";
+        Request request = new Request.Builder().header("NodeAddress", currentNodeAddress).url(address).build();
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
 
-        if (response.code() == 404)
-            throw new NodeNotFoundException();
+            String res = Objects.requireNonNull(response.body()).string();
+            Block[] blocks = objectMapper.readValue(res, Block[].class);
+            return Arrays.asList(blocks);
 
-        return Arrays.asList(objectMapper.readValue(Objects.requireNonNull(response.body()).toString(), Block[].class));
+        }
     }
 
+    public HashSet<String> findSoftNodes(String node) throws IOException {
+        String address = node + "/nodes";
+        Request request = new Request.Builder().header("NodeAddress", currentNodeAddress).url(address).build();
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+            String res = Objects.requireNonNull(response.body()).string();
+            String[] softNodes = objectMapper.readValue(res, String[].class);
+            return new HashSet<>(Arrays.asList(softNodes));
+
+        }
+    }
 
     public Block computeHash(@NotNull Block block) {
         String hash;
@@ -291,7 +321,7 @@ public class CoreService {
 
     private String getDifficultyLevel() {
         if (chain.size() % 5 == 0)
-            return chain.get(chain.size() - 1).getDifficultyLevel() + (++conditionChar);
+            return chain.get(chain.size() - 1).getDifficultyLevel() + ("0");
         return chain.get(chain.size() - 1).getDifficultyLevel();
 
     }
@@ -307,7 +337,7 @@ public class CoreService {
     }
 
     public void addNode(String node) {
-        this.nodes.add(node);
+        this.softNodes.add(node);
     }
 
     public Block getBlock() {
@@ -332,5 +362,10 @@ public class CoreService {
     public List<Block> getChain() {
         return new ArrayList<>(chain);
     }
+
+    public Set<String> getSoftNodes() {
+        return softNodes;
+    }
+
 
 }

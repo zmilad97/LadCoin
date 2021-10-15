@@ -9,10 +9,12 @@ import com.github.zmilad97.core.service.CoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.net.URL;
 import java.util.*;
 
@@ -57,17 +59,27 @@ public class CoreController {
     }
 
     @GetMapping("/block")
-    public ResponseEntity<Block> sendBlock() {
+    public ResponseEntity<Block> getBlock() {
         LOG.debug("sending Block");
         Block block = coreService.getBlock();
-        if(block == null)
+        if (block == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         return ResponseEntity.ok(block);
     }
 
     @GetMapping("/chain")
-    public List<Block> chain() {
+    public List<Block> chain(HttpServletRequest request) {
+
+        if (request.getHeader("NodeAddress") != null) {
+            coreService.addNode(request.getHeader("NodeAddress"));
+        }
+
         return coreService.getChain();
+    }
+
+    @GetMapping("/nodes")
+    public Set<String> getNodes() {
+        return coreService.getSoftNodes();
     }
 
     @PostMapping("/node/register")
@@ -76,8 +88,8 @@ public class CoreController {
     }
 
 //    @GetMapping("/resolve")
-//    public List<Block> resolve() {
-//        return coreService.resolveConflict();
+//    public void resolve(@RequestHeader HttpHeaders httpHeaders) {
+//        coreService.resolveConflict();
 //    }
 
     @GetMapping("/test/block")
