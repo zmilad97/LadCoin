@@ -1,29 +1,34 @@
 package com.github.zmilad97.core;
 
-import com.github.zmilad97.core.module.transaction.Transaction;
-import com.github.zmilad97.core.service.CoreService;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
+import com.github.zmilad97.core.service.Cryptography;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.Assert;
+
+import javax.xml.bind.DatatypeConverter;
+import java.math.BigInteger;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class RestfulBlockChainCoreApplicationTests {
-    @Autowired
-    private TestRestTemplate restTemplate;
-    @Autowired
-    private CoreService coreService;
 
-    @AfterEach
-    void cleanUp(){
-        coreService.getChain();
+
+    private final Cryptography cryptography = new Cryptography();
+
+    @Test
+    void testCrypto() {
+        String hash = toHex(cryptography.getSha("test"));
+        Long i = 0L;
+        while (!hash.startsWith("000000")) {
+            hash = toHex(cryptography.getSha(i + "test"));
+            i++;
+        }
+        System.out.println(i);
+        System.out.println(hash);
     }
 
+    public String toHex(byte[] hash) {
 
+        return DatatypeConverter.printHexBinary(hash);
+    }
 
 }
