@@ -53,7 +53,6 @@ public class CoreService {
         hardNodes = new HashSet<>();
         softNodes = new HashSet<>();
         currentNodeAddress = "";
-        LOG.info("Current Node Address = " + currentNodeAddress);
         okHttpClient = new OkHttpClient();
         objectMapper = new ObjectMapper();
     }
@@ -216,7 +215,6 @@ public class CoreService {
 
             lastBlock = block;
         }
-
         return true;
     }
 
