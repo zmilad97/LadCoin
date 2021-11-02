@@ -1,42 +1,52 @@
 package com.github.zmilad97.core.controller;
 
 
+import com.github.zmilad97.core.exceptions.InvalidBlockException;
 import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
 import com.github.zmilad97.core.module.transaction.TransactionInput;
 import com.github.zmilad97.core.module.transaction.TransactionOutput;
 import com.github.zmilad97.core.service.CoreService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.zmilad97.core.service.TransactionService;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
-import java.net.URL;
+
 import java.util.*;
 
 @RestController
+@Slf4j
 public class CoreController {
-    private static final Logger LOG = LoggerFactory.getLogger(CoreController.class);
     private final CoreService coreService;
+    private final TransactionService transactionService;
 
     @Autowired
-    public CoreController(CoreService coreService) {
+    public CoreController(CoreService coreService, TransactionService transactionService) {
         this.coreService = coreService;
+        this.transactionService = transactionService;
     }
 
-    @GetMapping("/connectionTest")
-    public void testConnection() {
+    @GetMapping("/confirmation")
+    public ResponseEntity<Boolean> confirmation(@RequestBody Block block) {
+        return coreService.getConfirmation(block);
     }
 
     @PostMapping("/validMine")
-    public void validMine(@RequestBody Block block) {
-//        Block block =new Block();
-        LOG.info("validating : {}", block);
-        coreService.addBlock(block);
+    public ResponseEntity<String> validMine(HttpServletRequest request, @RequestBody Block block) {
+        log.info("validating : {}", block);
+        try {
+            coreService.addBlock(block);
+            if (request.getHeader("address") != null)
+                coreService.addNode(request.getHeader("address"));
+            return new ResponseEntity<>("successful", HttpStatus.ACCEPTED);
+        } catch (InvalidBlockException e) {
+            return new ResponseEntity<>("invalid", HttpStatus.NOT_ACCEPTABLE);
+        }
     }
 
     @PostMapping("/transaction/new")
@@ -45,25 +55,19 @@ public class CoreController {
         coreService.addTransaction(transaction);
     }
 
-/*
-    @RequestMapping(value = "/wallet/status", method = RequestMethod.POST)
-    public Wallet walletStatus(@RequestBody String pubKey) {
-        return null;
-    }
-*/
 
     @PostMapping("/UTXOs")
     public List<Transaction> UTXOs(@RequestBody String signature) {
-        LOG.info(signature);
-        return coreService.findUTXOs(signature);
+        log.info(signature);
+        return transactionService.findUTXOs(signature);
     }
 
     @GetMapping("/block")
     public ResponseEntity<Block> getBlock() {
-        LOG.debug("sending Block");
+        log.debug("sending Block");
         Block block = coreService.getBlock();
         if (block == null)
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         return ResponseEntity.ok(block);
     }
 
@@ -83,15 +87,12 @@ public class CoreController {
     }
 
     @PostMapping("/node/register")
-    public void registerNode(URL url) {
-        coreService.addNode(url.getAuthority());
+    public void registerNode(String url) {
+        coreService.addNode(url);
     }
 
-//    @GetMapping("/resolve")
-//    public void resolve(@RequestHeader HttpHeaders httpHeaders) {
-//        coreService.resolveConflict();
-//    }
 
+    @SneakyThrows
     @GetMapping("/test/block")
     public void addTestBlock() {
         String signature = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEF25QbMKZV5wJ/tw9BjBvx137bIQwbJR76bYkwAQeKbn9xRPPaMNpu0hWRlZt8MUxvGvn/ln5PxPHB+cmbmacZw==";
@@ -109,7 +110,7 @@ public class CoreController {
         transaction.setTransactionOutput(transactionOutput);
         List<Transaction> transactionList = new ArrayList<>();
         transactionList.add(transaction);
-        LOG.debug(String.valueOf(transaction));
+        log.debug(String.valueOf(transaction));
         Block block = new Block(10, String.valueOf(new java.util.Date()), transactionList);
         coreService.addBlock(block);
     }
@@ -127,10 +128,9 @@ public class CoreController {
         transactionOutput.setSignature("signature test");
         transactionOutput.setAmount(200);
 
-        transaction.setTransactionId("test");
+        transaction.setTransactionId(String.valueOf(new Random()));
         transaction.setTransactionOutput(transactionOutput);
         transaction.setTransactionInput(transactionInput);
-        transaction.setTransactionHash("tst 404");
         coreService.addTransaction(transaction);
     }
 }
