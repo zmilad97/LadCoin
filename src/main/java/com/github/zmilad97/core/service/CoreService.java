@@ -5,38 +5,39 @@ package com.github.zmilad97.core.service;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.zmilad97.core.exceptions.InvalidBlockException;
 import com.github.zmilad97.core.module.Block;
 import com.github.zmilad97.core.module.transaction.Transaction;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.security.*;
-import java.security.spec.EncodedKeySpec;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
+
 import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Service
+@Slf4j
 public class CoreService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CoreService.class);
-    private static final int CHANGE_REWARD_AMOUNT_PER = 50;
+    private static double BLOCK_REWARD = 50;
+    public static final Map<String, Transaction> chainIndex = new HashMap<>();
+    public static final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
+    public static final Map<Block, Long> blockConfirmation = new HashMap<>();
     private final Map<String, Transaction> currentTransactions;
-    private final Map<String, Transaction> chainIndex = new HashMap<>();
-    private final Map<String, List<Transaction>> signatureIndex = new HashMap<>();
     private final OkHttpClient okHttpClient;
     private final ObjectMapper objectMapper;
-
     private List<Block> chain = new ArrayList<>();
+    private final TransactionService transactionService;
+    private final RequestHandler requestHandler;
     private final Cryptography cryptography;
     private final ReadWriteLock readWriteLock;
     @Value("${app.currentNodeAddress}")
@@ -45,7 +46,10 @@ public class CoreService {
     private final Set<String> hardNodes;
     private final Set<String> softNodes;
 
+
     public CoreService() {
+        transactionService = new TransactionService();
+        requestHandler = new RequestHandler();
         cryptography = new Cryptography();
         currentTransactions = new HashMap<>();
         readWriteLock = new ReentrantReadWriteLock();
@@ -83,122 +87,64 @@ public class CoreService {
         }
     }
 
-    public void addBlock(Block block) {
+
+    public void addBlock(Block block) throws InvalidBlockException {
         readWriteLock.writeLock().lock();
         try {
             if (validMine(block)) {
-                LOG.debug(String.valueOf(block.getIndex()));
-                doTransactions(block);
+                transactionService.doTransactions(block);
                 chain.add(block);
-                block.getTransactions().forEach(t -> this.chainIndex.put(t.getTransactionHash(), t));
+                block.getTransactions().forEach(t -> chainIndex.put(t.getTransactionHash(), t));
                 block.getTransactions().forEach(t -> {
-                    if (signatureIndex.get(t.getTransactionOutput().getSignature()) == null) {
-                        this.signatureIndex.put(t.getTransactionOutput().getSignature(), new ArrayList<>());
-                    }
-                    this.signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
+                    signatureIndex.computeIfAbsent(t.getTransactionOutput().getSignature(), k -> new ArrayList<>());
+                    signatureIndex.get(t.getTransactionOutput().getSignature()).add(t);
                 });
                 block.getTransactions().forEach(t -> this.currentTransactions.remove(t.getTransactionHash()));
-                LOG.info("Block has been added to chain");
+                blockConfirmation.put(block, 1L);
+                log.info("Block {} with hash {} has been added to chain ", block.getIndex(), block.getHash());
+                doConfirmations(block);
             } else
-                LOG.info("Block Is invalid");
+                throw new InvalidBlockException();
         } finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
-    //removing unValid Transaction
-    private void doTransactions(@NotNull Block block) {
-        LOG.debug("block transaction size " + block.getTransactions().size());
-        for (int i = 0; i < block.getTransactions().size(); i++) {
-            if (!(block.getTransactions().get(i).getTransactionId().equals("REWARD" + block.getIndex()))) {
-                LOG.debug("i " + i);
-                LOG.debug(block.getTransactions().get(0).getTransactionHash());
-                if (!(validTransaction(block.getTransactions().get(i))))
-                    block.getTransactions().remove(block.getTransactions().get(i));
-            }
+    /**
+     * @param block sends given block to nodes to get confirmations
+     */
+
+    private void doConfirmations(Block block) {
+        List<String> nodes = new ArrayList<>();
+        nodes.addAll(hardNodes);
+        nodes.addAll(softNodes);
+
+        nodes.forEach(node ->
+                requestHandler.getBlockConfirmationAsync(node, block).thenAccept(response -> {
+                    if (response.statusCode() == 202) {
+                        Long currentConfirmation = blockConfirmation.get(block);
+                        blockConfirmation.put(block, currentConfirmation + 1);
+                    }
+
+                }));
+    }
+
+
+    private boolean validMine(Block block) {
+        if (!block.getHash().startsWith(getDifficultyLevel())) {
+            return false;
         }
-    }
-
-    public boolean validTransaction(@NotNull Transaction transaction) {
-        if (transaction.getTransactionId().startsWith("REWARD"))
-            return true;
-        LOG.debug(transaction.getTransactionInput().getPubKey());
-        if (transaction.getTransactionInput().getPubKey().equals("null"))
-            return true;
-
-        LOG.debug(transaction.getTransactionInput().getPubKey());
-        boolean result = false;
-        EncodedKeySpec encodedKeySpec = null;
-        try {
-            encodedKeySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(transaction.getTransactionInput().getPubKey()));
-        } catch (IllegalArgumentException e) {
-            LOG.error(e.getLocalizedMessage()); //TODO fix this
-        }
-        KeyFactory keyFactory;
-        PublicKey publicKey = null;
-        Signature signature = null;
-
-        try {
-            keyFactory = KeyFactory.getInstance("EC");
-            publicKey = keyFactory.generatePublic(encodedKeySpec);
-            signature = Signature.getInstance("SHA256withECDSA");
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            LOG.error(e.getLocalizedMessage());
-        }
-
-        for (int i = 0; i < transaction.getTransactionInput().getPreviousTransactionHash().size(); i++) {
-            Transaction trx = findTransactionByTransactionHash(transaction.getTransactionInput().getPreviousTransactionHash().get(i));
-            if (trx.getTransactionOutput().getSignature().equals(transaction.getTransactionOutput().getSignature())) {
-                try {
-                    assert signature != null;
-                    signature.initVerify(publicKey);
-                    signature.update(Base64.getEncoder().encode(publicKey.getEncoded()));
-                    result = signature.verify(Base64.getDecoder().decode(trx.getTransactionOutput().getSignature()));
-
-                } catch (InvalidKeyException | SignatureException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return result;
-    }
-
-    public Transaction findTransactionByTransactionHash(String hash) {
-        return chainIndex.get(hash);
-    }
-
-
-    public List<Transaction> findUTXOs(String signature) {
-        List<Transaction> unspentTransaction = this.signatureIndex.get(signature);
-        unspentTransaction.stream()
-                .filter(t -> !transactionIsUnspent(t, unspentTransaction))
-                .forEach(unspentTransaction::remove);
-
-        return unspentTransaction;
-    }
-
-    //Check the UTXOs unspent or not
-    private boolean transactionIsUnspent(Transaction transaction, List<Transaction> UTXOsList) {
-        LOG.debug(" unspent Transactions ");
-        for (int i = UTXOsList.size() - 1; i >= 0; i--)
-            for (int j = transaction.getTransactionInput().getPreviousTransactionHash().size() - 1; j >= 0; j--)
-                if (UTXOsList.get(i).getTransactionHash()
-                        .equals(transaction.getTransactionInput().getPreviousTransactionHash().get(j)))
-                    return false;
-
-        return true;
-    }
-
-    private boolean validMine(@NotNull Block block) {
         StringBuilder transactionStringToHash = new StringBuilder();
         for (int i = 0; i < block.getTransactions().size(); i++)
             transactionStringToHash.append(block.getTransactions().get(i).getTransactionHash());
 
         String stringToHash = block.getNonce() + block.getIndex() + block.getDate() + block.getPreviousHash() + transactionStringToHash;
-        LOG.info(stringToHash);
-        LOG.info("Block hash : {}", block.getHash());
-        LOG.info("crypto : {} ", cryptography.toHexString(cryptography.getSha(stringToHash)));
-        return cryptography.toHexString(cryptography.getSha(stringToHash)).equals(block.getHash());
+        String blockHash = block.getHash();
+        String actualHash = cryptography.toHexString(cryptography.getSha(stringToHash));
+        log.info(stringToHash);
+        log.info("Block hash : {}", blockHash);
+        log.info("Actual hash : {} ", actualHash);
+        return blockHash.equals(actualHash);
     }
 
     private boolean validChain(List<Block> chain) {
@@ -247,14 +193,14 @@ public class CoreService {
                     }
 
                 } catch (IOException e) {
-                    LOG.error(e.getMessage());
+                    log.error(e.getMessage());
                 }
             }
             if (newChain != null) {
                 this.chain = newChain;
                 chainIndex.clear();
                 this.chain.stream().flatMap(b -> b.getTransactions().stream()).forEach(t -> chainIndex.put(t.getTransactionHash(), t));
-                LOG.info("Chain has been replaced");
+                log.info("Chain has been replaced");
             }
 
 
@@ -289,7 +235,7 @@ public class CoreService {
         }
     }
 
-    public Block computeHash(@NotNull Block block) {
+    public Block computeHash(Block block) {
         String hash;
 
         long nonce = -1;
@@ -305,7 +251,7 @@ public class CoreService {
 
             hash = cryptography.toHexString(cryptography.getSha(stringToHash));
             if (hash.startsWith(block.getDifficultyLevel())) {
-                LOG.trace("string to hash {}", stringToHash);
+                log.trace("string to hash {}", stringToHash);
                 break;
             }
 
@@ -324,13 +270,17 @@ public class CoreService {
 
     }
 
-    public double getReward() {
-        if (chain.size() % CHANGE_REWARD_AMOUNT_PER == 0)
-            return chain.get(chain.size() - 1).getReward() / 2;
-        return chain.get(chain.size() - 1).getReward();
+    public void setReward() {
+        if (chain.size() % 5 == 0) {
+            for (int i = 0; i < chain.size() / 5; i++) {
+                BLOCK_REWARD = BLOCK_REWARD / 2;
+            }
+        } else
+            BLOCK_REWARD = chain.get(chain.size() - 1).getReward();
     }
 
     public void addTransaction(Transaction transaction) {
+        transaction.setTransactionHash(computeTransactionHash(transaction));
         currentTransactions.put(transaction.getTransactionHash(), transaction);
     }
 
@@ -349,11 +299,19 @@ public class CoreService {
             block.setPreviousHash(this.chain.get(this.chain.size() - 1).getPreviousHash());
             block.setTransactions(this.currentTransactions.values());
             block.setDifficultyLevel(getDifficultyLevel());
-            block.setReward(getReward());
+            block.setReward(BLOCK_REWARD);
             return block;
         } finally {
+            setReward();
             readWriteLock.readLock().unlock();
         }
+    }
+
+    public String computeTransactionHash(Transaction transaction) {
+        String toHashString = transaction.getTransactionId() +
+                transaction.getTransactionInput().getPubKey() +
+                transaction.getTransactionOutput().getSignature();
+        return cryptography.toHexString(cryptography.getSha(toHashString));
     }
 
 
@@ -366,4 +324,10 @@ public class CoreService {
     }
 
 
+    public ResponseEntity<Boolean> getConfirmation(Block block) {
+        if (validMine(block))
+            return new ResponseEntity<>(true, HttpStatus.ACCEPTED);
+        else
+            return new ResponseEntity<>(false, HttpStatus.NOT_ACCEPTABLE);
+    }
 }
